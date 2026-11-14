@@ -27,16 +27,22 @@ ios/.symlinks/
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 ios/Flutter/ephemeral/
-ios/Runner/GoogleService-Info.plist
-android/app/google-services.json
+**/GoogleService-Info*.plist
+**/google-services.json
+**/firebase_options.dart
 ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png
 
 # Env & secrets
 .env
 .env.*
+**/.env
+server/**/.env
 environment/
 *.keystore
 *.jks
+*.p12
+*.mobileprovision
+*.jceks
 
 # OS
 .DS_Store

@@ -10,11 +10,13 @@
 |---|---|
 | 产品与技术规划 | ✅ 完成（见 `docs/`） |
 | 中国大陆方案（地图/推送/备案） | ✅ 已定（见 `docs/09`） |
-| 工程骨架 | ✅ 已建立（无平台工程） |
-| 核心抽象（坐标系 / 地图 / 推送） | ✅ 代码已写，待编译验证 |
-| Traccar 推送补丁 | ✅ 代码已写（`server/`） |
-| Flutter 平台工程 | ⬜ 待生成（本机未安装 Flutter） |
-| MVP 开发 | ⬜ 未开始 |
+| 工程骨架 + 平台工程 | ✅ android/ ios/ 已生成并配置 |
+| 核心抽象（坐标系 / 地图 / 推送） | ✅ 编译验证通过（Flutter 3.47.9） |
+| **MVP 开发（P0 全量）** | ✅ 已实现（见 CHANGELOG 0.2.0） |
+| 单元测试 | ✅ 58 用例全绿；`flutter analyze` 0 issues |
+| Traccar 推送补丁 + 网关参考实现 | ✅ `server/`（含零依赖 Node.js 网关） |
+| 安全审计（MASVS-L1） | ✅ 首轮审计 + 阻断项整改（见 `docs/11-security-performance-audit.md`） |
+| 待办（外部依赖） | ⬜ 高德/极光 Key、备案号、隐私政策 URL（`--dart-define` 占位） |
 
 > 首发市场为**中国大陆**。当前地图按高德实施，推送按极光 + 厂商通道实施；
 > 详细依据见 [docs/09-china-launch.md](docs/09-china-launch.md)。
@@ -64,21 +66,32 @@
 
 ```
 trackerone/
-├── docs/                     # 开发文档（先读 00、01、03、09）
+├── android/  ios/            # 平台工程（已生成并配置，见 tool/configure-platform.sh）
+├── docs/                     # 开发文档（先读 00、01、03、09；11 为审计报告）
 ├── lib/
-│   ├── app/                  # App 壳、路由、主题
+│   ├── app/                  # App 壳、路由守卫、Shell、通用组件
 │   ├── core/
-│   │   ├── config/           # BuildConfig / 品牌
-│   │   ├── map/              # 坐标系、地图抽象、高德适配
-│   │   ├── push/             # PushGateway、极光、FCM
+│   │   ├── config/           # BuildConfig / 品牌（含备案号占位）
+│   │   ├── location/         # 权限服务、厂商引导
+│   │   ├── map/              # 坐标系、地图抽象、高德适配、隐私同意门
+│   │   ├── network/          # REST / WebSocket / 拦截器 / 证书策略
+│   │   ├── observability/    # 日志脱敏、文件 sink、崩溃上报（同意门控）
+│   │   ├── push/             # PushGateway、极光、FCM、网关客户端、深链路由
+│   │   ├── storage/          # drift 六表、SecureStore、Prefs、数据擦除
 │   │   ├── tracking/         # TrackingEngine 与 SDK 适配
-│   │   └── observability/    # 崩溃上报
-│   └── features/             # 按业务域划分
-├── server/                   # Traccar 推送补丁 + 网关契约
-├── test/                     # 单元 / Widget 测试
-├── integration_test/         # 端到端测试（待建）
-├── tool/bootstrap.sh         # 生成 android/ios 平台工程
-├── tool/verify.sh            # pub get / analyze / test
+│   │   └── utils/            # Clock 等基础工具
+│   ├── domain/               # 实体 + AppFailure 错误模型
+│   └── features/             # 11 个业务域（application 控制器 + presentation 页面）
+├── server/
+│   ├── gateway/              # 推送网关参考实现（零依赖 Node.js）+ 联调脚本
+│   └── traccar-plugin/       # NotificatorWebhook 补丁
+├── test/                     # 单元测试（58 用例）
+├── tool/
+│   ├── bootstrap.sh          # 重新生成平台工程（FORCE）
+│   ├── verify.sh             # pub get / 代码生成 / analyze / test
+│   ├── configure-platform.sh # 平台配置自检（CI 同步运行）
+│   └── fix-plugins.sh        # 插件 compileSdk 对齐（pub get 后运行）
+├── .github/workflows/ci.yml  # CI：analyze/test/平台自检/CN 成分断言
 ├── pubspec.yaml
 └── analysis_options.yaml
 ```
@@ -132,7 +145,8 @@ flutter run \
 | [08-decisions-risks.md](docs/08-decisions-risks.md) | ADR、风险登记、待决问题 |
 | [09-china-launch.md](docs/09-china-launch.md) | 中国大陆地图/推送/备案/商店落地方案 |
 | [10-setup-runbook.md](docs/10-setup-runbook.md) | 环境搭建、平台工程、M0 验收手册 |
-| [server/README.md](server/README.md) | Traccar webhook 补丁、推送网关契约、联调 |
+| [11-security-performance-audit.md](docs/11-security-performance-audit.md) | 安全（MASVS-L1）与性能审计、整改记录、工具链问题 |
+| [server/README.md](server/README.md) | Traccar webhook 补丁、推送网关契约（含安全基线）、联调 |
 
 ## 许可证与商标
 

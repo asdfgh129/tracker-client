@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:x_amap_base/x_amap_base.dart';
 
 import '../../config/build_config.dart';
+import '../../observability/logger.dart';
 import '../coordinate_transform.dart';
 import '../geo_point.dart';
 import '../map_models.dart';
@@ -86,8 +87,9 @@ class _AmapTrackerMapState extends State<AmapTrackerMap> {
         final wgs = CoordinateTransform.gcj02ToWgs84(
           GeoPoint(latLng.latitude, latLng.longitude),
         );
-        // 需要「点选建围栏」时在这里回调 wgs。
-        debugPrint('map tap: $wgs');
+        // M-4：坐标不裸 debugPrint（release 仍会输出且绕过脱敏）；
+        // 走 AppLog，坐标在写入前已降到 3 位小数。
+        AppLog.d('map', 'tap $wgs');
       },
     );
   }

@@ -54,6 +54,13 @@ abstract final class BuildConfig {
     'PUSH_GATEWAY_URL',
   );
 
+  /// H-4：远程指令签名密钥（与推送网关 `COMMAND_HMAC_KEY` 一致）。
+  ///
+  /// 未配置时**指令通道关闭**：应用会拒绝一切未签名指令
+  /// （fail-closed，避免推送 payload 成为无认证的远程控制面）。
+  static const String commandHmacKey =
+      String.fromEnvironment('COMMAND_HMAC_KEY');
+
   /// 崩溃上报：`firebase`（海外/开发）或 `none`（中国大陆默认，接 Bugly 后改）。
   static const String crashReporter = String.fromEnvironment(
     'CRASH_REPORTER',

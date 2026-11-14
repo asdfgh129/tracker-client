@@ -56,36 +56,42 @@ features → application → domain ← data
 
 ```
 lib/
-├── main.dart
+├── main.dart                    # 崩溃处理 / Prefs / DB / 日志 sink 装配
 ├── app/
-│   ├── app.dart                 # MaterialApp.router
-│   ├── router.dart              # go_router + 守卫
-│   ├── theme.dart
-│   └── shell.dart               # 底部导航骨架
+│   ├── app.dart                 # MaterialApp.router + 生命周期（WS 前后台）
+│   ├── router.dart              # go_router + 五级守卫（隐私/服务器/登录/锁）
+│   ├── shell.dart               # 底部导航（按模式动态）
+│   ├── splash_screen.dart       # 启动决策页
+│   ├── theme.dart               # 设计令牌 + 状态色扩展
+│   └── widgets/common.dart      # 空态/错误卡/离线横幅/骨架屏
 ├── core/
 │   ├── config/
-│   │   ├── brand.dart           # 品牌、包名、默认地址
-│   │   └── build_config.dart    # --dart-define
+│   │   ├── brand.dart           # 品牌、包名、备案号/审图号占位
+│   │   └── build_config.dart    # --dart-define（含 COMMAND_HMAC_KEY）
 │   ├── network/
-│   │   ├── api_client.dart      # Dio 实例
-│   │   ├── auth_interceptor.dart
-│   │   ├── retry_interceptor.dart
-│   │   └── socket_client.dart   # WebSocket 生命周期
+│   │   ├── server_profile.dart      # 档案 + 地址推导 + 二维码解析
+│   │   ├── traccar_api.dart         # REST 客户端（docs/04 全量）
+│   │   ├── interceptors.dart        # Auth/Retry/Error/脱敏日志
+│   │   ├── socket_client.dart       # WebSocket（重连/快照/去重）
+│   │   └── certificate_policy*.dart # 自签名策略（条件导入 IO/桩）
 │   ├── storage/
-│   │   ├── database.dart        # drift
-│   │   ├── secure_store.dart
-│   │   └── preferences.dart     # 命名空间隔离
+│   │   ├── database.dart        # drift 六表 + 保留策略（含 .g.dart 生成）
+│   │   ├── secure_store.dart    # Keystore/Keychain
+│   │   ├── preferences.dart     # 命名空间隔离
+│   │   └── data_eraser.dart     # 删除权实现（日志/导出文件）
 │   ├── tracking/
 │   │   ├── tracking_engine.dart # 接口
 │   │   └── sdk_tracking_engine.dart
 │   ├── push/
-│   │   ├── push_gateway.dart    # 抽象 + Noop
+│   │   ├── push_gateway.dart    # 抽象 + Noop + PushMessage
 │   │   ├── jpush_push_gateway.dart
 │   │   ├── fcm_push_gateway.dart
-│   │   ├── push_service.dart    # alias / 注册 / 消息门面
-│   │   └── push_router.dart     # data → 深链（待实现）
+│   │   ├── push_service.dart    # 盐值别名注册 / 消息门面
+│   │   ├── gateway_client.dart  # 网关 REST（alias-salt / aliases）
+│   │   └── push_router.dart     # 深链路由 + 意图缓存
 │   ├── location/
-│   │   └── permission_service.dart
+│   │   ├── permission_service.dart  # 分阶段权限申请（docs/05 §5.2）
+│   │   └── vendor_hints.dart        # 国产 ROM 引导
 │   ├── map/
 │   │   ├── geo_point.dart            # 坐标点 + 坐标系枚举
 │   │   ├── coordinate_transform.dart # WGS84/GCJ02/BD09
@@ -97,25 +103,27 @@ lib/
 │   │       ├── amap_bootstrap.dart
 │   │       └── amap_tracker_map.dart
 │   ├── observability/
-│   │   ├── logger.dart
-│   │   └── crash_reporter.dart
+│   │   ├── logger.dart          # 环形缓冲 + 脱敏（LogRedactor）
+│   │   ├── log_sink.dart        # 文件 sink（10MB 轮转 / 7 天）
+│   │   └── crash_reporter.dart  # 同意门控（H-5）
 │   └── utils/
+│       └── clock.dart           # 可注入时钟 + 节流
 ├── domain/
-│   ├── entities/
-│   ├── repositories/
-│   └── failures.dart
-└── features/
-    ├── onboarding/
-    ├── auth/
-    ├── server/
-    ├── map/
-    ├── devices/
-    ├── history/
-    ├── events/
-    ├── tracking/
-    ├── commands/
-    ├── diagnostics/
-    └── settings/
+│   ├── entities/models.dart     # Device / Position / Event / Account
+│   └── failures.dart            # AppFailure 密封类（Repository 接口由
+│                                #  feature 的 application 层承担）
+└── features/                    # 每个域：application/（控制器）+ presentation/（页面）
+    ├── onboarding/              # 隐私门 / 模式选择 / 权限向导
+    ├── auth/                    # 会话控制器 / 登录 / 生物锁
+    ├── server/                  # 档案控制器 / 服务器设置页
+    ├── map/                     # 查询与渲染派生 / 地图页
+    ├── devices/                 # 三路数据合并 / 列表 / 详情
+    ├── history/                 # 查询/抽稀/停留/导出 / 回放页
+    ├── events/                  # 事件控制器 / 列表 / 详情
+    ├── tracking/                # 状态机 / 绑定 / 面板 / 配置
+    ├── commands/                # 指令收发与验签
+    ├── diagnostics/             # 结论引擎 / 诊断页
+    └── settings/                # 设置控制器 / 设置页 / 关于页
 ```
 
 ### Feature 内部结构

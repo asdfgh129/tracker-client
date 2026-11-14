@@ -1,22 +1,789 @@
 {
   "@@locale": "en",
   "appName": "TrackerOne",
-  "mapTab": "Map",
-  "devicesTab": "Devices",
-  "eventsTab": "Alerts",
-  "trackingTab": "Tracking",
-  "settingsTab": "Settings",
-  "diagnosticsTitle": "Diagnostics",
-  "startTracking": "Start tracking",
-  "stopTracking": "Stop tracking",
-  "lastUpload": "Last upload",
-  "queueSize": "Queued positions",
+  "tabMap": "Map",
+  "tabDevices": "Devices",
+  "tabEvents": "Alerts",
+  "tabTracking": "Tracking",
+  "tabSettings": "Me",
+  "commonRetry": "Retry",
+  "commonCancel": "Cancel",
+  "commonConfirm": "Confirm",
+  "commonSave": "Save",
+  "commonDelete": "Delete",
+  "commonClose": "Close",
+  "commonOpenSettings": "Open settings",
+  "commonCopy": "Copy",
+  "commonCopied": "Copied",
+  "commonLoading": "Loading…",
+  "commonRefresh": "Refresh",
+  "commonShare": "Share",
+  "commonNotAvailable": "Not available",
+  "commonUnknown": "Unknown",
+  "commonSearch": "Search",
+  "commonDone": "Done",
+  "commonNext": "Next",
+  "commonSkip": "Skip for now",
+  "offlineBanner": "Offline — showing cached data, updated {time}",
+  "@offlineBanner": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "errorNetwork": "Network unavailable. Check your connection and retry.",
+  "errorTimeout": "Connection timed out. Please retry.",
+  "errorUnauthorized": "Session expired. Please sign in again.",
+  "errorForbidden": "You don't have permission for this action.",
+  "errorNotFound": "Not found.",
+  "errorServer": "Server error. Please retry later.",
+  "errorUnknown": "Something went wrong.",
+  "privacyTitle": "Privacy Policy",
+  "privacyIntro": "TrackerOne reports this device's location to your own server, and shows devices managed by your account.",
+  "privacyBullets": "We collect: location, device model, OS version, crash logs (optional) and push identifier.\nLocation is sensitive personal data. Background tracking requires your separate consent.\nThird-party SDKs: AMap (map), JPush (push, China only), Firebase (international only). Details in the full policy.",
+  "privacyFullPolicy": "Read full policy",
+  "privacyAgree": "Agree",
+  "privacyDecline": "Decline and exit",
+  "privacyRequiredTitle": "Privacy consent required",
+  "privacyRequiredBody": "Map, push and analytics SDKs stay disabled until you agree. You can still use the app without them.",
+  "privacyDeclined": "Privacy policy declined. The app cannot start without consent.",
+  "modeTitle": "How will you use TrackerOne?",
+  "modeSubtitle": "You can change this later in Settings.",
+  "modeTrack": "Track this phone",
+  "modeTrackDesc": "Report this device's location in background.",
+  "modeView": "View devices",
+  "modeViewDesc": "See and manage devices on your server.",
+  "modeBoth": "Both (recommended)",
+  "modeBothDesc": "Track this phone and view all devices.",
+  "serverTitle": "Server",
+  "serverName": "Server name",
   "serverAddress": "Server address",
-  "login": "Log in",
-  "logout": "Log out",
-  "retry": "Retry",
-  "offline": "Offline",
-  "noDevices": "No devices yet",
-  "permissionRequired": "Permission required",
-  "openSettings": "Open settings"
+  "serverAddressHint": "https://track.example.com",
+  "serverAddressHelp": "The report port :5055 is derived automatically.",
+  "serverAdvanced": "Advanced",
+  "serverApiUrl": "API address",
+  "serverReportUrl": "Report address",
+  "serverAllowSelfSigned": "Allow self-signed certificate (not recommended)",
+  "serverAllowSelfSignedWarn": "Disabling certificate verification exposes you to interception. Only use for your own self-hosted server.",
+  "serverTest": "Test connection",
+  "serverSaveContinue": "Save and continue",
+  "serverProbeOk": "Connected: {name} (v{version}, {ms} ms)",
+  "@serverProbeOk": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      },
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "serverProbeNeedsAuth": "Server reachable. Please sign in.",
+  "serverProbeTimeout": "Cannot connect. Check address and network.",
+  "serverProbeTls": "Certificate not trusted. Check the domain or allow self-signed in Advanced.",
+  "serverProbeNotTraccar": "No Traccar API detected at this address.",
+  "serverProbeError": "Connection failed: {detail}",
+  "@serverProbeError": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "serverScanQr": "Scan QR code",
+  "serverScanHint": "Point the camera at a server QR code (URL or JSON).",
+  "serverQrInvalid": "Could not read this QR code: {detail}",
+  "@serverQrInvalid": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "serverSaved": "Server saved",
+  "serverSwitch": "Switch server",
+  "serverDeleteConfirm": "Delete this server profile? Cached data for it will be removed.",
+  "serverInsecureConfirm": "Use plain HTTP? Location data would be sent unencrypted.",
+  "serverDemoBadge": "Demo",
+  "loginTitle": "Sign in",
+  "loginEmail": "Email",
+  "loginPassword": "Password",
+  "loginRemember": "Remember password",
+  "loginButton": "Sign in",
+  "loginWithToken": "Use token",
+  "loginToken": "Session token",
+  "loginTokenHint": "Paste a long-lived token (enterprise distribution).",
+  "loginForgot": "Forgot password?",
+  "loginFailed": "Wrong email or password.",
+  "loginOfflineMode": "Sign in failed — continue offline (read-only)",
+  "lockTitle": "Unlock TrackerOne",
+  "lockSubtitle": "Biometric unlock is enabled",
+  "lockUseBiometrics": "Unlock",
+  "lockFailed": "Verification failed",
+  "mapSearchHint": "Search devices…",
+  "mapFilter": "Filter",
+  "mapLayers": "Layers",
+  "mapLayerStandard": "Standard",
+  "mapLayerSatellite": "Satellite",
+  "mapLayerNight": "Night",
+  "mapTrail": "Trail",
+  "mapCluster": "Cluster markers",
+  "mapFollow": "Follow",
+  "mapFollowOn": "Following: {name}",
+  "@mapFollowOn": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mapLocateMe": "My location",
+  "mapNoDevices": "No devices yet",
+  "mapNoDevicesHint": "Add a device on the server or bind this phone.",
+  "mapAllOffline": "All devices offline. Last update {time}.",
+  "@mapAllOffline": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "mapPermissionMissing": "Location permission is needed to show your position.",
+  "mapConsentTitle": "Map service notice",
+  "mapConsentBody": "This app uses the AMap SDK to display locations and tracks. The SDK collects device info, network state and map interaction data. See the third-party SDK list in our Privacy Policy.",
+  "mapConsentAgree": "Agree and load map",
+  "mapNotConfigured": "Map not configured",
+  "mapNotConfiguredHint": "Build with --dart-define=MAP_PROVIDER=amap and AMap keys.",
+  "mapKeyMissing": "AMap key missing",
+  "mapKeyMissingHint": "Pass --dart-define=AMAP_ANDROID_KEY / AMAP_IOS_KEY at build time.",
+  "mapClusterCount": "{count} devices",
+  "@mapClusterCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mapSelf": "This phone",
+  "deviceListTitle": "Devices",
+  "deviceOnline": "Online",
+  "deviceOffline": "Offline",
+  "deviceUnknown": "Unknown",
+  "deviceStatusOffline": "Offline · last seen {time}",
+  "@deviceStatusOffline": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceSpeed": "{value} km/h",
+  "@deviceSpeed": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceBattery": "Battery {value}%",
+  "@deviceBattery": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceLastUpdate": "Updated {time}",
+  "@deviceLastUpdate": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceDetailTitle": "Device",
+  "deviceAttributes": "Attributes",
+  "deviceTodayDistance": "Today: {distance}",
+  "@deviceTodayDistance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceOpenHistory": "History",
+  "deviceSendCommand": "Command",
+  "deviceCommands": "Send command",
+  "deviceCommandSent": "Command sent",
+  "deviceCommandQueued": "Command queued (device offline)",
+  "deviceCommandFailed": "Command failed: {detail}",
+  "@deviceCommandFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "commandPositionSingle": "Locate now",
+  "commandPositionPeriodic": "Resume reporting",
+  "commandPositionStop": "Stop reporting",
+  "commandFactoryReset": "Factory reset (this app)",
+  "commandFactoryResetConfirm": "Stop reporting and clear this phone's tracking configuration?",
+  "deviceNoCommands": "This device does not support any command.",
+  "deviceBindTitle": "Bind this phone",
+  "deviceBindDesc": "Registers this phone as a device on your server with ID {id}.",
+  "@deviceBindDesc": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceBindButton": "Bind",
+  "deviceBindOk": "Bound as {name}",
+  "@deviceBindOk": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceBindNoPermission": "Cannot create devices. Ask your admin to add device {id}, then tap Bind again.",
+  "@deviceBindNoPermission": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceUniqueId": "Device ID",
+  "deviceUniqueIdHint": "8-digit identifier, editable",
+  "eventsTitle": "Alerts",
+  "eventsEmpty": "No events",
+  "eventsEmptyHint": "Check notification settings on your server.",
+  "eventsMarkRead": "Mark read",
+  "eventsMarkUnread": "Mark unread",
+  "eventsFilterAll": "All",
+  "eventsFilterUnread": "Unread",
+  "eventsFilterAlarms": "Alarms",
+  "eventsFilterGeofences": "Geofences",
+  "eventTypeDeviceOnline": "Device online",
+  "eventTypeDeviceOffline": "Device offline",
+  "eventTypeGeofenceEnter": "Geofence entered",
+  "eventTypeGeofenceExit": "Geofence exited",
+  "eventTypeAlarm": "Alarm",
+  "eventTypeSos": "SOS",
+  "eventTypeOverspeed": "Overspeed",
+  "eventTypeMaintenance": "Maintenance",
+  "eventTypeIgnitionOn": "Ignition on",
+  "eventTypeIgnitionOff": "Ignition off",
+  "eventTypeUnknown": "Event",
+  "eventDetailTitle": "Event",
+  "eventDetailOpenLocation": "Show on map",
+  "eventTime": "Time",
+  "historyTitle": "History",
+  "historyToday": "Today",
+  "historyYesterday": "Yesterday",
+  "history7d": "7 days",
+  "historyCustom": "Custom",
+  "historyFrom": "From",
+  "historyTo": "To",
+  "historyPlay": "Play",
+  "historyPause": "Pause",
+  "historySpeed": "{value}×",
+  "@historySpeed": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "historyTabRoute": "Route",
+  "historyTabStops": "Stops",
+  "historyTabCharts": "Charts",
+  "historyTabEvents": "Events",
+  "historyStopsEmpty": "No stops detected",
+  "historyStopDuration": "{from} – {to} · {duration}",
+  "@historyStopDuration": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "historyChartSpeed": "Speed",
+  "historyChartAltitude": "Altitude",
+  "historyChartBattery": "Battery",
+  "historyExport": "Export",
+  "historyExportGpx": "GPX",
+  "historyExportKml": "KML",
+  "historyExportCsv": "CSV",
+  "historyExportDone": "Exported {file}",
+  "@historyExportDone": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "historyExportEmpty": "No points to export",
+  "historyDistance": "Distance {value}",
+  "@historyDistance": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "historyMaxSpeed": "Max {value}",
+  "@historyMaxSpeed": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "historyAvgSpeed": "Avg {value}",
+  "@historyAvgSpeed": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "historyMovingTime": "Moving {value}",
+  "@historyMovingTime": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "historyPoints": "{count} points",
+  "@historyPoints": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyLoadError": "Could not load history",
+  "trackingTitle": "Tracking",
+  "trackingUnconfigured": "This phone is not set up yet",
+  "trackingUnconfiguredHint": "Bind this phone to start background reporting.",
+  "trackingStart": "Start reporting",
+  "trackingStop": "Stop reporting",
+  "trackingStarting": "Starting…",
+  "trackingRunning": "Reporting",
+  "trackingStopped": "Stopped",
+  "trackingLimited": "Limited: {reason}",
+  "@trackingLimited": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingFailed": "Failed: {reason}",
+  "@trackingFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingLastUpload": "Last upload {time}",
+  "@trackingLastUpload": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingNeverUploaded": "Not uploaded yet",
+  "trackingQueue": "Queued {count}",
+  "@trackingQueue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingQueueHigh": "Queue backlog: {count} positions waiting for network",
+  "@trackingQueueHigh": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingLocateNow": "Locate now",
+  "trackingSos": "SOS",
+  "trackingSosConfirm": "Send SOS with next position report?",
+  "trackingSosSent": "SOS sent",
+  "trackingSosFailed": "SOS failed — check connection",
+  "trackingPowerSaver": "Power saver",
+  "trackingTodayStats": "Today: {reports} reports · {distance}",
+  "@trackingTodayStats": {
+    "placeholders": {
+      "reports": {
+        "type": "int"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingBgRestricted": "Background reporting may be limited by the system",
+  "trackingBgRestrictedAction": "Check battery optimization",
+  "trackingConsentTitle": "Background location consent",
+  "trackingConsentBody": "To report position while the screen is off, TrackerOne needs Background location.\n\n• Data: GPS position (WGS-84)\n• Frequency: every {seconds} s or {meters} m\n• Destination: your server {host}\n• Storage: server-side, removable anytime\n\nYou can stop anytime from the Tracking tab.",
+  "@trackingConsentBody": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      },
+      "meters": {
+        "type": "int"
+      },
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingConsentAgree": "Allow background reporting",
+  "trackingConsentDecline": "Not now",
+  "trackingConsentDeclinedHint": "Foreground-only mode: reporting pauses when the app goes to background.",
+  "trackingSettingsTitle": "Tracking settings",
+  "trackingPreset": "Preset",
+  "presetWalking": "Walking",
+  "presetDriving": "Driving",
+  "presetAsset": "Asset",
+  "presetHighFrequency": "High frequency",
+  "presetPowerSaver": "Power saver",
+  "presetCustom": "Custom",
+  "trackingAccuracy": "Accuracy",
+  "accuracyHighest": "Highest",
+  "accuracyHigh": "High",
+  "accuracyMedium": "Medium",
+  "accuracyLow": "Low",
+  "trackingInterval": "Interval",
+  "trackingIntervalValue": "{seconds} s",
+  "@trackingIntervalValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingDistance": "Distance",
+  "trackingDistanceValue": "{meters} m",
+  "@trackingDistanceValue": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingAngle": "Turn angle",
+  "trackingAngleValue": "{degrees}°",
+  "@trackingAngleValue": {
+    "placeholders": {
+      "degrees": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingHeartbeat": "Heartbeat (iOS)",
+  "trackingHeartbeatValue": "{seconds} s",
+  "@trackingHeartbeatValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingBuffer": "Offline buffer",
+  "trackingBufferDesc": "Queue positions when offline and upload later.",
+  "trackingBufferOffWarn": "Turning off the buffer may lose positions during outages.",
+  "trackingStopDetection": "Stop detection",
+  "trackingStopDetectionDesc": "Pause GPS when stationary to save battery.",
+  "trackingWakeLock": "Wake lock (debug)",
+  "trackingPreferPlatform": "Prefer platform providers",
+  "trackingPreferPlatformDesc": "Disable fused provider (troubleshooting).",
+  "trackingApplied": "Applied",
+  "trackingLogs": "Tracking logs",
+  "trackingLogsEmpty": "No logs yet",
+  "trackingLogsClear": "Clear logs",
+  "permWizardTitle": "Permissions",
+  "permWizardStep": "Step {current} of {total}",
+  "@permWizardStep": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "permNotificationTitle": "Notifications",
+  "permNotificationDesc": "Shows the tracking status and alerts.",
+  "permForegroundTitle": "Location (while using)",
+  "permForegroundDesc": "Shows your position on the map.",
+  "permBackgroundTitle": "Location (allow all the time)",
+  "permBackgroundDesc": "Keeps reporting when the screen is off. You grant this when starting reporting; you can also do it now.",
+  "permMotionTitle": "Motion & Fitness",
+  "permMotionDesc": "Detects being stationary to save battery.",
+  "permGranted": "Granted",
+  "permDenied": "Denied",
+  "permPermanentlyDenied": "Permanently denied. Enable it in system settings.",
+  "permLater": "Later",
+  "vendorTitle": "Battery optimization",
+  "vendorDesc": "Chinese ROMs may stop background apps. Follow the steps for your device:",
+  "vendorXiaomi": "Xiaomi/Redmi: Settings → Apps → Permissions → Autostart; Battery → No restrictions",
+  "vendorHuawei": "Huawei/Honor: Settings → Apps → Launch → Manage manually; Battery optimization → Don't allow",
+  "vendorOppo": "OPPO/realme: Battery → App freezer → Allow background; Autostart",
+  "vendorVivo": "vivo/iQOO: Battery → Background power consumption → Allow; Autostart",
+  "vendorSamsung": "Samsung: Battery → Background usage limits → Remove from Sleeping apps",
+  "vendorOnePlus": "OnePlus/Meizu: Battery optimization → Don't optimize; Autostart",
+  "vendorGeneric": "Allow the app to run in background / disable battery optimization.",
+  "vendorRecheck": "I've done it — check again",
+  "settingsTitle": "Me",
+  "settingsAccount": "Account",
+  "settingsServer": "Server",
+  "settingsMap": "Map",
+  "settingsMapStyle": "Map style",
+  "settingsMapTrail": "Show trail",
+  "settingsMapCluster": "Cluster markers",
+  "settingsNotifications": "Notifications",
+  "settingsNotificationsDesc": "System notification permission",
+  "settingsDnd": "Do not disturb",
+  "settingsDndDesc": "Deliver alerts as in-app events during this window.",
+  "settingsUnits": "Units",
+  "unitsMetric": "Metric",
+  "unitsImperial": "Imperial",
+  "settingsTheme": "Theme",
+  "themeSystem": "Follow system",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "settingsLanguage": "Language",
+  "languageSystem": "System default",
+  "languageEn": "English",
+  "languageZh": "中文",
+  "settingsPrivacy": "Privacy & permissions",
+  "settingsPrivacyList": "Personal information collected",
+  "settingsPrivacyListBody": "Location (with your consent) · device model · OS version · push identifier · crash logs (optional). Location is used only to report to your configured server and display on the map.",
+  "settingsSdkList": "Third-party SDK list",
+  "settingsSdkListBody": "AMap SDK (map, China) · JPush SDK (push, China) · Firebase (push/crash, international builds only). SDKs initialize only after privacy consent.",
+  "settingsDiagnostics": "Diagnostics",
+  "settingsAbout": "About",
+  "settingsLogout": "Sign out",
+  "settingsLogoutConfirm": "Sign out? The session token will be revoked and local cache cleared.",
+  "settingsDeleteData": "Delete local data",
+  "settingsDeleteDataConfirm": "Delete all locally cached devices, positions and events? The server keeps its own data.",
+  "settingsDeleteDataDone": "Local data deleted",
+  "settingsAccountDelete": "Delete account",
+  "settingsAccountDeleteDesc": "Account deletion is managed on the server (users admin). This app also offers local data deletion.",
+  "settingsAnalytics": "Anonymous usage statistics",
+  "settingsAnalyticsDesc": "Helps improve reliability. Never includes location or identifiers.",
+  "aboutTitle": "About",
+  "aboutVersion": "Version {version}",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutIcp": "App filing (ICP)",
+  "aboutIcpPlaceholder": "Filing pending — shown here after approval",
+  "aboutMapLicense": "Map: AMap, approval number {number}",
+  "@aboutMapLicense": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutMapLicensePending": "Map: AMap (approval number shown after key approval)",
+  "aboutPrivacyPolicy": "Privacy policy",
+  "aboutSupport": "Support",
+  "aboutLicenses": "Open-source licenses",
+  "aboutServerVersion": "Server: Traccar {version}",
+  "@aboutServerVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "diagTitle": "Diagnostics",
+  "diagOverall": "Overall",
+  "diagOk": "All good",
+  "diagWarning": "Some issues found",
+  "diagError": "Problems detected",
+  "diagPermissions": "Permissions",
+  "diagPermForeground": "Foreground location",
+  "diagPermBackground": "Background location",
+  "diagPermNotification": "Notifications",
+  "diagPermMotion": "Motion",
+  "diagBackground": "Background limits",
+  "diagBatteryOptimization": "Battery optimization ignored",
+  "diagTracking": "Reporting",
+  "diagLastUpload": "Last successful upload",
+  "diagQueue": "Queued positions",
+  "diagNeverUploaded": "Never uploaded",
+  "diagNetwork": "Network",
+  "diagSocket": "Realtime connection",
+  "diagSocketConnected": "Connected",
+  "diagSocketConnecting": "Connecting…",
+  "diagSocketDisconnected": "Disconnected",
+  "diagServer": "Server",
+  "diagServerAddress": "Address",
+  "diagServerVersion": "Version",
+  "diagServerAuth": "Authentication",
+  "diagServerAuthOk": "Valid token",
+  "diagServerAuthNone": "Not signed in",
+  "diagClockSkew": "Clock offset vs server",
+  "diagClockSkewValue": "{seconds} s",
+  "@diagClockSkewValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "diagLogs": "Logs",
+  "diagLogsExport": "Export logs",
+  "diagTestServer": "Test server reachability",
+  "diagConclusionNoPermission": "Missing background location permission. Tracking stops when the screen is off.",
+  "diagConclusionNoService": "Tracking service not running. Restart reporting from the Tracking tab.",
+  "diagConclusionNoFix": "No GPS updates for over 10 minutes. Check GPS signal or battery saver.",
+  "diagConclusionNoUpload": "Locations are captured but not uploaded. Check network and server address.",
+  "diagConclusionSocketDown": "Live map updates are stalled. Reconnecting may help.",
+  "diagActionOpenSettings": "Open settings",
+  "diagActionRetryTracking": "Restart reporting",
+  "diagActionReconnect": "Reconnect",
+  "diagActionTest": "Test now",
+  "diagVendorHint": "Vendor background limits detected",
+  "diagDevice": "Device",
+  "pushForegroundBanner": "{title}: {body}",
+  "@pushForegroundBanner": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "body": {
+        "type": "String"
+      }
+    }
+  },
+  "timeJustNow": "just now",
+  "timeSecondsAgo": "{count}s ago",
+  "@timeSecondsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeMinutesAgo": "{count} min ago",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeHoursAgo": "{count} h ago",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeDaysAgo": "{count} d ago",
+  "@timeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unitKmh": "{value} km/h",
+  "@unitKmh": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "unitMph": "{value} mph",
+  "@unitMph": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "unitKm": "{value} km",
+  "@unitKm": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "unitMi": "{value} mi",
+  "@unitMi": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "unitMeters": "{value} m",
+  "@unitMeters": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "unitFeet": "{value} ft",
+  "@unitFeet": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "deepLinkInvalid": "Unsupported link: {url}",
+  "@deepLinkInvalid": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "eventNotFound": "Event not found (it may have been cleaned up)",
+  "deviceStatusLabel": "Status",
+  "lastUpdateLabel": "Last update",
+  "serverAllowInsecure": "Allow plaintext HTTP (not recommended)",
+  "serverAllowInsecureWarn": "Plaintext HTTP sends location, credentials and tokens unencrypted. Only enable for a trusted local network.",
+  "settingsRevokePrivacy": "Withdraw privacy consent",
+  "settingsRevokePrivacyDesc": "Stops all third-party collection and clears local data.",
+  "settingsRevokePrivacyConfirm": "Withdraw consent? Map, push and analytics SDKs will stop, and locally cached data will be deleted. You will be asked to agree again on next launch."
 }

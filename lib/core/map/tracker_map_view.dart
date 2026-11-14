@@ -69,7 +69,7 @@ class _AmapGate extends ConsumerWidget {
 
     return consent.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, __) => _MapConsentCard(
+      error: (_, _) => _MapConsentCard(
         onAgree: () => ref.read(mapPrivacyConsentProvider.notifier).agree(),
       ),
       data: (agreed) {

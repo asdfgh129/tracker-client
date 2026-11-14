@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 
+import '../observability/logger.dart';
 import 'push_gateway.dart';
 
 /// FCM 后台消息处理。必须在 `main()` 之前通过
@@ -49,7 +49,7 @@ class FcmPushGateway implements PushGateway {
         await Firebase.initializeApp();
       }
     } catch (error) {
-      debugPrint('Firebase 初始化失败，FCM 推送不可用: $error');
+      AppLog.w('push', 'Firebase 初始化失败，FCM 推送不可用', code: '$error');
       return;
     }
 

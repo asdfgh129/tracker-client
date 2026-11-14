@@ -5,6 +5,7 @@ import 'package:jpush_flutter/jpush_flutter.dart';
 import 'package:jpush_flutter/jpush_interface.dart';
 
 import '../config/build_config.dart';
+import '../observability/logger.dart';
 import 'push_gateway.dart';
 
 /// 极光推送（JPush）通道，面向中国大陆生产环境。
@@ -43,7 +44,7 @@ class JpushPushGateway implements PushGateway {
       return;
     }
     if (BuildConfig.jpushAppKey.isEmpty) {
-      debugPrint('JPUSH_APP_KEY 未配置，极光推送不可用');
+      AppLog.w('push', 'JPUSH_APP_KEY 未配置，极光推送不可用');
       return;
     }
     _initialized = true;
@@ -75,7 +76,7 @@ class JpushPushGateway implements PushGateway {
       }
     } catch (error) {
       // 冷启动接口在部分 ROM 上可能失败，不影响后续推送。
-      debugPrint('JPush getLaunchAppNotification failed: $error');
+      AppLog.w('push', 'getLaunchAppNotification failed', code: '$error');
     }
 
     await updateAlias(alias);
@@ -88,7 +89,7 @@ class JpushPushGateway implements PushGateway {
       await _jpush.setAlias(alias);
     } catch (error) {
       // alias 注册失败通常是网络或 AppKey 未配置；记录后等待下次登录重试。
-      debugPrint('JPush setAlias failed: $error');
+      AppLog.w('push', 'setAlias failed', code: '$error');
     }
   }
 

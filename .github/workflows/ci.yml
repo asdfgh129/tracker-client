@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+# M-9：最小权限（默认 GITHUB_TOKEN 只读，避免第三方 Action 被劫持后改动产物）。
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # M-9：Action 锁 commit SHA（tag 可被移动）。升级时手工改 SHA。
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.16.0
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Generate l10n
+        run: flutter gen-l10n
+
+      - name: Generate drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos --fatal-warnings
+
+      - name: Test
+        run: flutter test
+
+      - name: Plugin compileSdk alignment
+        run: tool/fix-plugins.sh
+
+      - name: Platform config self-check
+        run: tool/configure-platform.sh
+
+  # CN 包成分检查（docs/09 §3.9）。
+  # M-9：不再只 grep 常量，而是实际构建 CN 变体并解包断言无 Firebase/GMS。
+  cn-build-hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c254 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.16.0
+        with:
+          channel: stable
+          cache: true
+
+      - name: Build CN debug APK
+        run: |
+          flutter pub get
+          tool/fix-plugins.sh
+          flutter build apk --debug             --dart-define=MAP_PROVIDER=none             --dart-define=PUSH_PROVIDER=jpush             --dart-define=CRASH_REPORTER=none
+
+      - name: Assert no Firebase/GMS classes in CN artifact
+        run: |
+          set -e
+          APK=$(find build/app/outputs/flutter-apk -name 'app-debug.apk' | head -1)
+          [ -n "$APK" ] || { echo "APK not found"; exit 1; }
+          echo "checking $APK"
+          if unzip -l "$APK" | grep -Ei 'firebase|gms' ; then
+            echo "::error::CN 包仍包含 Firebase/GMS 成分，需按 docs/09 §3.9 拆分依赖"
+            exit 1
+          fi
+          echo "CN artifact clean"

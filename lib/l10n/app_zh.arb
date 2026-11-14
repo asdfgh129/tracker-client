@@ -1,22 +1,789 @@
 {
   "@@locale": "zh",
   "appName": "TrackerOne",
-  "mapTab": "地图",
-  "devicesTab": "设备",
-  "eventsTab": "告警",
-  "trackingTab": "跟踪",
-  "settingsTab": "设置",
-  "diagnosticsTitle": "诊断",
-  "startTracking": "开始上报",
-  "stopTracking": "停止上报",
-  "lastUpload": "最后上报",
-  "queueSize": "待上传位置",
+  "tabMap": "地图",
+  "tabDevices": "设备",
+  "tabEvents": "告警",
+  "tabTracking": "跟踪",
+  "tabSettings": "我的",
+  "commonRetry": "重试",
+  "commonCancel": "取消",
+  "commonConfirm": "确认",
+  "commonSave": "保存",
+  "commonDelete": "删除",
+  "commonClose": "关闭",
+  "commonOpenSettings": "打开设置",
+  "commonCopy": "复制",
+  "commonCopied": "已复制",
+  "commonLoading": "加载中…",
+  "commonRefresh": "刷新",
+  "commonShare": "分享",
+  "commonNotAvailable": "不可用",
+  "commonUnknown": "未知",
+  "commonSearch": "搜索",
+  "commonDone": "完成",
+  "commonNext": "下一步",
+  "commonSkip": "暂不",
+  "offlineBanner": "离线 — 显示缓存数据，更新于 {time}",
+  "@offlineBanner": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "errorNetwork": "网络不可用，请检查网络连接后重试。",
+  "errorTimeout": "连接超时，请重试。",
+  "errorUnauthorized": "登录已过期，请重新登录。",
+  "errorForbidden": "没有执行此操作的权限。",
+  "errorNotFound": "资源不存在。",
+  "errorServer": "服务器错误，请稍后重试。",
+  "errorUnknown": "出了点问题。",
+  "privacyTitle": "隐私政策",
+  "privacyIntro": "TrackerOne 将本机位置上报到你自己的服务器，并展示你账号下的设备。",
+  "privacyBullets": "我们收集：位置、设备型号、系统版本、崩溃日志（可选）与推送标识。\n位置属于敏感个人信息，后台定位需要你的单独同意。\n第三方 SDK：高德地图（地图）、极光推送（仅中国大陆）、Firebase（仅海外）。详见完整政策。",
+  "privacyFullPolicy": "阅读完整政策",
+  "privacyAgree": "同意",
+  "privacyDecline": "拒绝并退出",
+  "privacyRequiredTitle": "需要隐私同意",
+  "privacyRequiredBody": "在你同意之前，地图、推送与统计 SDK 不会初始化。你也可以在未同意的情况下使用应用的基本功能。",
+  "privacyDeclined": "你拒绝了隐私政策，应用无法继续使用。",
+  "modeTitle": "你想用 TrackerOne 做什么？",
+  "modeSubtitle": "之后可以在设置中修改。",
+  "modeTrack": "跟踪本机",
+  "modeTrackDesc": "在后台上报这台手机的位置。",
+  "modeView": "查看设备",
+  "modeViewDesc": "查看和管理服务器上的设备。",
+  "modeBoth": "两者都要（推荐）",
+  "modeBothDesc": "上报本机位置，并查看所有设备。",
+  "serverTitle": "服务器",
+  "serverName": "服务器名称",
   "serverAddress": "服务器地址",
-  "login": "登录",
-  "logout": "退出登录",
-  "retry": "重试",
-  "offline": "离线",
-  "noDevices": "还没有设备",
-  "permissionRequired": "需要权限",
-  "openSettings": "打开设置"
+  "serverAddressHint": "https://track.example.com",
+  "serverAddressHelp": "上报端口 :5055 会自动推导。",
+  "serverAdvanced": "高级",
+  "serverApiUrl": "API 地址",
+  "serverReportUrl": "上报地址",
+  "serverAllowSelfSigned": "允许自签名证书（不推荐）",
+  "serverAllowSelfSignedWarn": "关闭证书校验会带来被窃听的风险，仅建议用于你自建的服务器。",
+  "serverTest": "测试连接",
+  "serverSaveContinue": "保存并继续",
+  "serverProbeOk": "连接成功：{name}（v{version}，{ms} 毫秒）",
+  "@serverProbeOk": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      },
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "serverProbeNeedsAuth": "服务器可达，请登录。",
+  "serverProbeTimeout": "无法连接，请检查地址与网络。",
+  "serverProbeTls": "证书不受信任，请检查域名，或在高级选项中允许自签名。",
+  "serverProbeNotTraccar": "该地址未检测到 Traccar API。",
+  "serverProbeError": "连接失败：{detail}",
+  "@serverProbeError": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "serverScanQr": "扫码导入",
+  "serverScanHint": "将相机对准服务器二维码（URL 或 JSON 均可）。",
+  "serverQrInvalid": "无法识别该二维码：{detail}",
+  "@serverQrInvalid": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "serverSaved": "服务器已保存",
+  "serverSwitch": "切换服务器",
+  "serverDeleteConfirm": "删除该服务器档案？其本地缓存数据会一并删除。",
+  "serverInsecureConfirm": "使用明文 HTTP？位置数据将不加密传输。",
+  "serverDemoBadge": "演示",
+  "loginTitle": "登录",
+  "loginEmail": "邮箱",
+  "loginPassword": "密码",
+  "loginRemember": "记住密码",
+  "loginButton": "登录",
+  "loginWithToken": "使用 Token 登录",
+  "loginToken": "会话 Token",
+  "loginTokenHint": "粘贴长期 Token（企业分发场景）。",
+  "loginForgot": "忘记密码？",
+  "loginFailed": "邮箱或密码错误。",
+  "loginOfflineMode": "登录失败 — 离线继续（只读）",
+  "lockTitle": "解锁 TrackerOne",
+  "lockSubtitle": "已启用生物识别锁",
+  "lockUseBiometrics": "解锁",
+  "lockFailed": "验证失败",
+  "mapSearchHint": "搜索设备…",
+  "mapFilter": "筛选",
+  "mapLayers": "图层",
+  "mapLayerStandard": "标准",
+  "mapLayerSatellite": "卫星",
+  "mapLayerNight": "暗色",
+  "mapTrail": "轨迹尾迹",
+  "mapCluster": "聚合标记",
+  "mapFollow": "跟随",
+  "mapFollowOn": "跟随中：{name}",
+  "@mapFollowOn": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mapLocateMe": "定位",
+  "mapNoDevices": "还没有设备",
+  "mapNoDevicesHint": "在服务器添加设备，或绑定本机。",
+  "mapAllOffline": "所有设备离线，最后更新 {time}。",
+  "@mapAllOffline": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "mapPermissionMissing": "需要定位权限才能显示你的位置。",
+  "mapConsentTitle": "地图服务说明",
+  "mapConsentBody": "本应用使用高德地图 SDK 显示位置与轨迹。SDK 会收集设备信息、网络状态和地图交互数据。详见隐私政策中的第三方 SDK 清单。",
+  "mapConsentAgree": "同意并加载地图",
+  "mapNotConfigured": "地图未配置",
+  "mapNotConfiguredHint": "构建时使用 --dart-define=MAP_PROVIDER=amap 并配置高德 Key。",
+  "mapKeyMissing": "缺少高德地图 Key",
+  "mapKeyMissingHint": "请在构建时传入 --dart-define=AMAP_ANDROID_KEY / AMAP_IOS_KEY。",
+  "mapClusterCount": "{count} 台设备",
+  "@mapClusterCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mapSelf": "本机",
+  "deviceListTitle": "设备",
+  "deviceOnline": "在线",
+  "deviceOffline": "离线",
+  "deviceUnknown": "未知",
+  "deviceStatusOffline": "离线 · 最后在线 {time}",
+  "@deviceStatusOffline": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceSpeed": "{value} km/h",
+  "@deviceSpeed": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceBattery": "电量 {value}%",
+  "@deviceBattery": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceLastUpdate": "更新于 {time}",
+  "@deviceLastUpdate": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceDetailTitle": "设备详情",
+  "deviceAttributes": "属性",
+  "deviceTodayDistance": "今日：{distance}",
+  "@deviceTodayDistance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceOpenHistory": "历史轨迹",
+  "deviceSendCommand": "指令",
+  "deviceCommands": "发送指令",
+  "deviceCommandSent": "指令已发送",
+  "deviceCommandQueued": "指令已排队（设备离线）",
+  "deviceCommandFailed": "指令失败：{detail}",
+  "@deviceCommandFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "commandPositionSingle": "立即定位",
+  "commandPositionPeriodic": "恢复上报",
+  "commandPositionStop": "停止上报",
+  "commandFactoryReset": "恢复出厂（本应用）",
+  "commandFactoryResetConfirm": "停止上报并清空本机的跟踪配置？",
+  "deviceNoCommands": "该设备不支持任何指令。",
+  "deviceBindTitle": "绑定本机",
+  "deviceBindDesc": "将本机注册为服务器上的设备，标识为 {id}。",
+  "@deviceBindDesc": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceBindButton": "绑定",
+  "deviceBindOk": "已绑定为「{name}」",
+  "@deviceBindOk": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceBindNoPermission": "没有创建设备的权限。请联系管理员添加设备 {id} 后再次绑定。",
+  "@deviceBindNoPermission": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceUniqueId": "设备标识",
+  "deviceUniqueIdHint": "8 位数字，可修改",
+  "eventsTitle": "告警",
+  "eventsEmpty": "暂无事件",
+  "eventsEmptyHint": "请检查服务器的通知设置。",
+  "eventsMarkRead": "标为已读",
+  "eventsMarkUnread": "标为未读",
+  "eventsFilterAll": "全部",
+  "eventsFilterUnread": "未读",
+  "eventsFilterAlarms": "告警",
+  "eventsFilterGeofences": "围栏",
+  "eventTypeDeviceOnline": "设备上线",
+  "eventTypeDeviceOffline": "设备离线",
+  "eventTypeGeofenceEnter": "进入围栏",
+  "eventTypeGeofenceExit": "离开围栏",
+  "eventTypeAlarm": "告警",
+  "eventTypeSos": "SOS 求助",
+  "eventTypeOverspeed": "超速",
+  "eventTypeMaintenance": "保养",
+  "eventTypeIgnitionOn": "点火",
+  "eventTypeIgnitionOff": "熄火",
+  "eventTypeUnknown": "事件",
+  "eventDetailTitle": "事件详情",
+  "eventDetailOpenLocation": "在地图查看",
+  "eventTime": "时间",
+  "historyTitle": "历史轨迹",
+  "historyToday": "今日",
+  "historyYesterday": "昨日",
+  "history7d": "近 7 天",
+  "historyCustom": "自定义",
+  "historyFrom": "开始",
+  "historyTo": "结束",
+  "historyPlay": "播放",
+  "historyPause": "暂停",
+  "historySpeed": "{value}×",
+  "@historySpeed": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "historyTabRoute": "路线",
+  "historyTabStops": "停留",
+  "historyTabCharts": "图表",
+  "historyTabEvents": "事件",
+  "historyStopsEmpty": "未检测到停留",
+  "historyStopDuration": "{from} – {to} · {duration}",
+  "@historyStopDuration": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "historyChartSpeed": "速度",
+  "historyChartAltitude": "海拔",
+  "historyChartBattery": "电量",
+  "historyExport": "导出",
+  "historyExportGpx": "GPX",
+  "historyExportKml": "KML",
+  "historyExportCsv": "CSV",
+  "historyExportDone": "已导出 {file}",
+  "@historyExportDone": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "historyExportEmpty": "没有可导出的位置点",
+  "historyDistance": "里程 {value}",
+  "@historyDistance": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "historyMaxSpeed": "最高 {value}",
+  "@historyMaxSpeed": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "historyAvgSpeed": "均速 {value}",
+  "@historyAvgSpeed": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "historyMovingTime": "行驶 {value}",
+  "@historyMovingTime": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "historyPoints": "{count} 个点",
+  "@historyPoints": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyLoadError": "历史加载失败",
+  "trackingTitle": "本机跟踪",
+  "trackingUnconfigured": "本机尚未设置",
+  "trackingUnconfiguredHint": "绑定本机后即可开始后台位置上报。",
+  "trackingStart": "开始上报",
+  "trackingStop": "停止上报",
+  "trackingStarting": "启动中…",
+  "trackingRunning": "上报中",
+  "trackingStopped": "已停止",
+  "trackingLimited": "受限：{reason}",
+  "@trackingLimited": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingFailed": "失败：{reason}",
+  "@trackingFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingLastUpload": "最后上报 {time}",
+  "@trackingLastUpload": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingNeverUploaded": "尚未上报",
+  "trackingQueue": "待上传 {count}",
+  "@trackingQueue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingQueueHigh": "队列积压：{count} 个位置等待网络恢复",
+  "@trackingQueueHigh": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingLocateNow": "立即定位",
+  "trackingSos": "SOS",
+  "trackingSosConfirm": "随下一次位置上报发送 SOS 求助标记？",
+  "trackingSosSent": "SOS 已发送",
+  "trackingSosFailed": "SOS 发送失败 — 请检查网络",
+  "trackingPowerSaver": "省电模式",
+  "trackingTodayStats": "今日：上报 {reports} 次 · {distance}",
+  "@trackingTodayStats": {
+    "placeholders": {
+      "reports": {
+        "type": "int"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingBgRestricted": "后台定位可能被系统限制",
+  "trackingBgRestrictedAction": "检查电池优化",
+  "trackingConsentTitle": "后台定位单独同意",
+  "trackingConsentBody": "在锁屏后持续上报位置需要「始终允许定位」权限。\n\n• 数据内容：GPS 位置（WGS-84）\n• 频率：每 {seconds} 秒或移动 {meters} 米\n• 接收方：你的服务器 {host}\n• 保存：服务器端，可随时删除\n\n你可以在「跟踪」页随时停止上报。",
+  "@trackingConsentBody": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      },
+      "meters": {
+        "type": "int"
+      },
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingConsentAgree": "允许后台上报",
+  "trackingConsentDecline": "暂不",
+  "trackingConsentDeclinedHint": "仅前台模式：应用退到后台后将暂停上报。",
+  "trackingSettingsTitle": "跟踪设置",
+  "trackingPreset": "预设",
+  "presetWalking": "步行",
+  "presetDriving": "驾车",
+  "presetAsset": "资产",
+  "presetHighFrequency": "高频",
+  "presetPowerSaver": "省电",
+  "presetCustom": "自定义",
+  "trackingAccuracy": "精度",
+  "accuracyHighest": "最高",
+  "accuracyHigh": "高",
+  "accuracyMedium": "中",
+  "accuracyLow": "低",
+  "trackingInterval": "上报间隔",
+  "trackingIntervalValue": "{seconds} 秒",
+  "@trackingIntervalValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingDistance": "位移触发",
+  "trackingDistanceValue": "{meters} 米",
+  "@trackingDistanceValue": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingAngle": "转向触发",
+  "trackingAngleValue": "{degrees}°",
+  "@trackingAngleValue": {
+    "placeholders": {
+      "degrees": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingHeartbeat": "心跳（iOS）",
+  "trackingHeartbeatValue": "{seconds} 秒",
+  "@trackingHeartbeatValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingBuffer": "离线缓冲",
+  "trackingBufferDesc": "断网时本地排队，恢复后补传。",
+  "trackingBufferOffWarn": "关闭缓冲后，断网期间的位置可能丢失。",
+  "trackingStopDetection": "静止检测",
+  "trackingStopDetectionDesc": "静止时暂停 GPS 以省电。",
+  "trackingWakeLock": "唤醒锁（调试用）",
+  "trackingPreferPlatform": "使用系统定位",
+  "trackingPreferPlatformDesc": "禁用融合定位（问题排查）。",
+  "trackingApplied": "已应用",
+  "trackingLogs": "跟踪日志",
+  "trackingLogsEmpty": "暂无日志",
+  "trackingLogsClear": "清空日志",
+  "permWizardTitle": "权限设置",
+  "permWizardStep": "第 {current} 步 / 共 {total} 步",
+  "@permWizardStep": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "permNotificationTitle": "通知",
+  "permNotificationDesc": "展示跟踪状态与告警提醒。",
+  "permForegroundTitle": "定位（使用期间）",
+  "permForegroundDesc": "在地图上显示你的位置。",
+  "permBackgroundTitle": "定位（始终允许）",
+  "permBackgroundDesc": "锁屏后继续上报。开启上报时会再申请，也可以现在授权。",
+  "permMotionTitle": "运动与健身",
+  "permMotionDesc": "判断是否静止以节省电量。",
+  "permGranted": "已授权",
+  "permDenied": "未授权",
+  "permPermanentlyDenied": "权限被永久拒绝，请在系统设置中开启。",
+  "permLater": "稍后再说",
+  "vendorTitle": "后台运行设置",
+  "vendorDesc": "国产系统可能清理后台应用。请按你的机型操作：",
+  "vendorXiaomi": "小米/Redmi：设置 → 应用 → 权限 → 自启动；省电策略 → 无限制",
+  "vendorHuawei": "华为/荣耀：应用启动管理 → 手动管理；电池优化 → 不允许",
+  "vendorOppo": "OPPO/realme：电池 → 应用速冻 → 允许后台运行；自启动",
+  "vendorVivo": "vivo/iQOO：电池 → 后台高耗电 → 允许；自启动",
+  "vendorSamsung": "三星：电池 → 后台使用限制 → 从「休眠应用」移除",
+  "vendorOnePlus": "一加/魅族：电池优化 → 不优化；自启动",
+  "vendorGeneric": "允许应用后台运行 / 关闭电池优化。",
+  "vendorRecheck": "我已设置，重新检测",
+  "settingsTitle": "我的",
+  "settingsAccount": "账号",
+  "settingsServer": "服务器",
+  "settingsMap": "地图",
+  "settingsMapStyle": "地图样式",
+  "settingsMapTrail": "显示轨迹尾迹",
+  "settingsMapCluster": "聚合标记",
+  "settingsNotifications": "通知",
+  "settingsNotificationsDesc": "系统通知权限",
+  "settingsDnd": "免打扰",
+  "settingsDndDesc": "该时段内告警仅以应用内事件送达。",
+  "settingsUnits": "单位",
+  "unitsMetric": "公制",
+  "unitsImperial": "英制",
+  "settingsTheme": "主题",
+  "themeSystem": "跟随系统",
+  "themeLight": "浅色",
+  "themeDark": "深色",
+  "settingsLanguage": "语言",
+  "languageSystem": "跟随系统",
+  "languageEn": "English",
+  "languageZh": "中文",
+  "settingsPrivacy": "隐私与权限",
+  "settingsPrivacyList": "个人信息收集清单",
+  "settingsPrivacyListBody": "位置（经你同意）· 设备型号 · 系统版本 · 推送标识 · 崩溃日志（可选）。位置仅用于上报到你配置的服务器并在地图显示。",
+  "settingsSdkList": "第三方 SDK 清单",
+  "settingsSdkListBody": "高德地图 SDK（地图，中国大陆）· 极光推送 SDK（推送，中国大陆）· Firebase（推送/崩溃，仅海外包）。所有 SDK 均在隐私同意后初始化。",
+  "settingsDiagnostics": "诊断",
+  "settingsAbout": "关于",
+  "settingsLogout": "退出登录",
+  "settingsLogoutConfirm": "退出登录？将撤销会话 Token 并清除本地缓存。",
+  "settingsDeleteData": "删除本地数据",
+  "settingsDeleteDataConfirm": "删除本地缓存的所有设备、位置与事件？服务器数据不受影响。",
+  "settingsDeleteDataDone": "本地数据已删除",
+  "settingsAccountDelete": "注销账号",
+  "settingsAccountDeleteDesc": "账号注销由服务器端处理（管理员操作）。本应用同时提供本地数据删除。",
+  "settingsAnalytics": "匿名使用统计",
+  "settingsAnalyticsDesc": "帮助改进可靠性，不包含位置或设备标识。",
+  "aboutTitle": "关于",
+  "aboutVersion": "版本 {version}",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutIcp": "APP 备案号",
+  "aboutIcpPlaceholder": "备案审批中 — 通过后在此展示",
+  "aboutMapLicense": "地图：高德地图，审图号 {number}",
+  "@aboutMapLicense": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutMapLicensePending": "地图：高德地图（审图号待 Key 审批后展示）",
+  "aboutPrivacyPolicy": "隐私政策",
+  "aboutSupport": "支持",
+  "aboutLicenses": "开源许可",
+  "aboutServerVersion": "服务器：Traccar {version}",
+  "@aboutServerVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "diagTitle": "诊断",
+  "diagOverall": "总体状态",
+  "diagOk": "一切正常",
+  "diagWarning": "发现一些问题",
+  "diagError": "存在问题",
+  "diagPermissions": "权限",
+  "diagPermForeground": "前台定位",
+  "diagPermBackground": "后台定位",
+  "diagPermNotification": "通知",
+  "diagPermMotion": "运动识别",
+  "diagBackground": "后台限制",
+  "diagBatteryOptimization": "已忽略电池优化",
+  "diagTracking": "上报",
+  "diagLastUpload": "最后成功上报",
+  "diagQueue": "待上传位置",
+  "diagNeverUploaded": "从未上报",
+  "diagNetwork": "网络",
+  "diagSocket": "实时连接",
+  "diagSocketConnected": "已连接",
+  "diagSocketConnecting": "连接中…",
+  "diagSocketDisconnected": "未连接",
+  "diagServer": "服务器",
+  "diagServerAddress": "地址",
+  "diagServerVersion": "版本",
+  "diagServerAuth": "认证状态",
+  "diagServerAuthOk": "Token 有效",
+  "diagServerAuthNone": "未登录",
+  "diagClockSkew": "与服务器时钟偏差",
+  "diagClockSkewValue": "{seconds} 秒",
+  "@diagClockSkewValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "diagLogs": "日志",
+  "diagLogsExport": "导出日志",
+  "diagTestServer": "测试服务器可达性",
+  "diagConclusionNoPermission": "缺少后台定位权限，锁屏后会停止上报。",
+  "diagConclusionNoService": "跟踪服务未运行，请在「跟踪」页重新开始上报。",
+  "diagConclusionNoFix": "超过 10 分钟没有新定位。请检查 GPS 信号或省电策略。",
+  "diagConclusionNoUpload": "有定位但未上报。请检查网络与服务器地址。",
+  "diagConclusionSocketDown": "实时更新中断，重新连接可恢复。",
+  "diagActionOpenSettings": "去设置",
+  "diagActionRetryTracking": "重新开始上报",
+  "diagActionReconnect": "重新连接",
+  "diagActionTest": "立即测试",
+  "diagVendorHint": "检测到厂商后台限制",
+  "diagDevice": "设备",
+  "pushForegroundBanner": "{title}：{body}",
+  "@pushForegroundBanner": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "body": {
+        "type": "String"
+      }
+    }
+  },
+  "timeJustNow": "刚刚",
+  "timeSecondsAgo": "{count} 秒前",
+  "@timeSecondsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeMinutesAgo": "{count} 分钟前",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeHoursAgo": "{count} 小时前",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeDaysAgo": "{count} 天前",
+  "@timeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unitKmh": "{value} km/h",
+  "@unitKmh": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "unitMph": "{value} mph",
+  "@unitMph": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "unitKm": "{value} km",
+  "@unitKm": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "unitMi": "{value} mi",
+  "@unitMi": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "unitMeters": "{value} 米",
+  "@unitMeters": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "unitFeet": "{value} 英尺",
+  "@unitFeet": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "deepLinkInvalid": "不支持的链接：{url}",
+  "@deepLinkInvalid": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "eventNotFound": "事件不存在（可能已被清理）",
+  "deviceStatusLabel": "状态",
+  "lastUpdateLabel": "最后更新",
+  "serverAllowInsecure": "允许明文 HTTP（不推荐）",
+  "serverAllowInsecureWarn": "明文 HTTP 会让位置、账号与 Token 在网络上以未加密形式传输，仅建议在可信内网使用。",
+  "settingsRevokePrivacy": "撤回隐私同意",
+  "settingsRevokePrivacyDesc": "停止一切第三方采集并删除本地数据。",
+  "settingsRevokePrivacyConfirm": "撤回同意？地图、推送与统计 SDK 将停止工作，本地缓存数据会被删除。下次启动会重新征求同意。"
 }

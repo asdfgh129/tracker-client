@@ -57,6 +57,9 @@ public class NotificatorWebhook extends Notificator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NotificatorWebhook.class);
 
+    /** M-10：网关或前置代理返回大体积错误页时截断日志，避免刷爆 Traccar 日志。 */
+    private static final int MAX_LOGGED_BODY = 256;
+
     private final Config config;
     private final CacheManager cacheManager;
     private final ObjectMapper objectMapper;
@@ -77,7 +80,9 @@ public class NotificatorWebhook extends Notificator {
 
     @Override
     public CompletableFuture<Void> sendAsync(
-            User user, NotificationMessage message, Event event, Position position) {
+            // 签名由 Traccar 的 Notificator 抽象类约定；position 不再外发
+            //（M-10 数据最小化），保留参数以匹配父类契约。
+            @SuppressWarnings("unused") Position position) {
 
         String url = config.getString("notificator.webhook.url");
         if (url == null || url.isBlank()) {
@@ -86,20 +91,27 @@ public class NotificatorWebhook extends Notificator {
         }
 
         try {
+            // M-10 数据最小化（PIPL 最小必要）：只发网关投递与模板所需的字段。
+            // 不再发送 userEmail、uniqueId 与完整 Event/Position 对象 ——
+            // 网关只需 event.id / event.type / deviceName / message 文案。
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("version", 1);
             payload.put("userId", user.getId());
-            payload.put("userEmail", user.getEmail());
             payload.put("deviceId", event.getDeviceId());
 
             Device device = cacheManager.getObject(Device.class, event.getDeviceId());
             if (device != null) {
                 payload.put("deviceName", device.getName());
-                payload.put("uniqueId", device.getUniqueId());
             }
 
-            payload.put("event", event);
-            payload.put("position", position);
+            Map<String, Object> eventSummary = new LinkedHashMap<>();
+            eventSummary.put("id", event.getId());
+            eventSummary.put("type", event.getType());
+            eventSummary.put("eventTime", String.valueOf(event.getEventTime()));
+            if (event.getGeofenceId() > 0) {
+                eventSummary.put("geofenceId", event.getGeofenceId());
+            }
+            payload.put("event", eventSummary);
 
             Map<String, Object> text = new LinkedHashMap<>();
             text.put("title", message.subject());
@@ -110,18 +122,39 @@ public class NotificatorWebhook extends Notificator {
 
             String body = objectMapper.writeValueAsString(payload);
 
+            // M-10：默认强制 HTTPS（含邮箱/设备名/位置的 payload 不得明文传输）。
+            // 本地联调可显式开启 notificator.webhook.allowHttp=true。
+            URI endpoint = URI.create(url);
+            boolean allowHttp = parseBoolean(
+                    config.getString("notificator.webhook.allowHttp"), false);
+            if (endpoint.getScheme() == null
+                    || (!"https".equalsIgnoreCase(endpoint.getScheme()) && !allowHttp)) {
+                LOGGER.warn(
+                        "Webhook URL 必须是 https；已丢弃事件 {}（如需明文请设"
+                                + " notificator.webhook.allowHttp=true）",
+                        event.getId());
+                return CompletableFuture.failedFuture(
+                        new IllegalStateException("insecure webhook url"));
+            }
+
             long timeoutSeconds = parseLong(
                     config.getString("notificator.webhook.timeoutSeconds"), 5L);
-            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(endpoint)
                     .timeout(Duration.ofSeconds(timeoutSeconds))
                     .header("Content-Type", "application/json; charset=utf-8")
                     .header("User-Agent", "traccar-webhook/1")
                     .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
 
+            // M-10：缺密钥时 fail-closed —— 绝不能无签名投递（网关会 401，
+            // 但更早失败能避免把事件内容发到不可信端点）。
             String secret = config.getString("notificator.webhook.secret");
-            if (secret != null && !secret.isBlank()) {
-                builder.header("X-Traccar-Signature", "sha256=" + hmacSha256(body, secret));
+            if (secret == null || secret.isBlank()) {
+                LOGGER.warn("notificator.webhook.secret 未配置，已丢弃事件 {}（拒绝无签名投递）",
+                        event.getId());
+                return CompletableFuture.failedFuture(
+                        new IllegalStateException("webhook secret not configured"));
             }
+            builder.header("X-Traccar-Signature", "sha256=" + hmacSha256(body, secret));
 
             return httpClient.sendAsync(builder.build(), HttpResponse.BodyHandlers.ofString())
                     .thenAccept(response -> {
@@ -129,7 +162,8 @@ public class NotificatorWebhook extends Notificator {
                             LOGGER.warn(
                                     "Webhook rejected event {} for user {}: HTTP {} {}",
                                     event.getId(), user.getId(),
-                                    response.statusCode(), response.body());
+                                    response.statusCode(),
+                                    truncate(response.body()));
                             throw new CompletionException(new IllegalStateException(
                                     "Webhook returned HTTP " + response.statusCode()));
                         }
@@ -139,6 +173,22 @@ public class NotificatorWebhook extends Notificator {
             LOGGER.warn("Webhook delivery failed for event {}", event.getId(), error);
             return CompletableFuture.failedFuture(error);
         }
+    }
+
+    private static boolean parseBoolean(String value, boolean fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return Boolean.parseBoolean(value.trim());
+    }
+
+    private static String truncate(String body) {
+        if (body == null) {
+            return "";
+        }
+        return body.length() <= MAX_LOGGED_BODY
+                ? body
+                : body.substring(0, MAX_LOGGED_BODY) + "…(truncated)";
     }
 
     private static long parseLong(String value, long fallback) {
