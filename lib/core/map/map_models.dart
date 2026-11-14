@@ -40,6 +40,24 @@ class MapTrail {
   final int width;
 }
 
+/// 地图上的好友标记（好友体系：身份按 uniqueId，位置来自 5056 通道）。
+///
+/// 与设备标记分开建模：好友设备可能不在 REST 设备列表里
+///（属于其他用户的设备，REST 权限不可见）。
+class FriendMarker {
+  const FriendMarker({
+    required this.uniqueId,
+    required this.label,
+    required this.point,
+    this.online = false,
+  });
+
+  final String uniqueId;
+  final String label;
+  final GeoPoint point;
+  final bool online;
+}
+
 /// 地图相机目标。
 class MapCameraTarget {
   const MapCameraTarget({

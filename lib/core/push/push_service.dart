@@ -43,7 +43,7 @@ final pushSessionHookProvider =
     }
 
     final secure = ref.read(secureStoreProvider);
-    final saltKey = _saltKey(sid);
+    final saltKey = aliasSaltKey(sid);
 
     // C-2：别名必须含服务端签发的随机盐。已有则复用，没有则向网关申请。
     String? salt = await secure.read(saltKey);
@@ -83,7 +83,33 @@ final pushSessionHookProvider =
   };
 });
 
-String _saltKey(int serverId) => 'push.aliasSalt.$serverId';
+/// 别名盐值的 Secure Storage 键（登出撤销时需读取）。
+String aliasSaltKey(int serverId) => 'push.aliasSalt.$serverId';
+
+/// 登出 / 切换服务器时撤销网关别名（best-effort，docs/09 §3.4 防串号）。
+///
+/// **必须在清除 Secure Storage 之前调用**（盐值尚在才能算出完整别名）。
+/// 网关未配置时静默跳过；网络失败只记日志，不阻塞登出流程。
+Future<void> deleteGatewayAliasFor({
+  required int userId,
+  required int serverId,
+  required String? salt,
+  String? sessionToken,
+}) async {
+  final gatewayUrl = BuildConfig.pushGatewayUrl;
+  if (gatewayUrl.isEmpty) return;
+  final alias = PushService.aliasFor(
+    userId: userId,
+    serverId: serverId,
+    salt: salt,
+  );
+  if (alias == null) return;
+  final client = PushGatewayClient(
+    baseUrl: gatewayUrl,
+    sessionToken: sessionToken,
+  );
+  await client.deleteAlias(alias);
+}
 
 /// 推送服务门面：把 alias 规则、注册时机、消息路由集中在一处。
 ///

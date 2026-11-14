@@ -12,7 +12,10 @@ import '../application/server_profile_controller.dart';
 
 /// 服务器档案页（AUTH-01/02/03/11，docs/02 §3.2）。
 class ServerSetupScreen extends ConsumerStatefulWidget {
-  const ServerSetupScreen({super.key});
+  const ServerSetupScreen({super.key, this.initialImportUrl});
+
+  /// 深链 `trackerone://server?url=...` 携带的预填地址。
+  final String? initialImportUrl;
 
   @override
   ConsumerState<ServerSetupScreen> createState() => _ServerSetupScreenState();
@@ -31,6 +34,15 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
   ProbeResult? _probe;
   bool _probing = false;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final url = widget.initialImportUrl;
+    if (url != null && url.isNotEmpty) {
+      _addressController.text = url;
+    }
+  }
 
   @override
   void dispose() {

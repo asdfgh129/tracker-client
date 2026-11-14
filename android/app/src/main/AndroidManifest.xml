@@ -38,6 +38,19 @@
             android:name="flutter_deeplinking_enabled"
             android:value="false" />
 
+        <!-- 极光推送（jpush_flutter 要求的宿主占位符）：
+             JPUSH_APPKEY / JPUSH_CHANNEL 由 build.gradle.kts 的 manifestPlaceholders
+             从 -PJPUSH_APPKEY / gradle.properties 注入，真实值不提交仓库。 -->
+        <meta-data
+            android:name="JPUSH_PKGNAME"
+            android:value="${JPUSH_PKGNAME}" />
+        <meta-data
+            android:name="JPUSH_APPKEY"
+            android:value="${JPUSH_APPKEY}" />
+        <meta-data
+            android:name="JPUSH_CHANNEL"
+            android:value="${JPUSH_CHANNEL}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

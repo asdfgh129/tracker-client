@@ -15,6 +15,7 @@ import 'map_provider.dart';
 class TrackerMapView extends ConsumerWidget {
   const TrackerMapView({
     required this.markers,
+    this.friendMarkers = const [],
     this.trails = const [],
     this.initialTarget,
     this.initialZoom = 15,
@@ -23,6 +24,7 @@ class TrackerMapView extends ConsumerWidget {
   });
 
   final List<MapDeviceMarker> markers;
+  final List<FriendMarker> friendMarkers;
   final List<MapTrail> trails;
   final GeoPoint? initialTarget;
   final double initialZoom;
@@ -36,6 +38,7 @@ class TrackerMapView extends ConsumerWidget {
       MapProvider.none => const _MapUnavailable(),
       MapProvider.amap => _AmapGate(
           markers: markers,
+          friendMarkers: friendMarkers,
           trails: trails,
           initialTarget: initialTarget,
           initialZoom: initialZoom,
@@ -49,6 +52,7 @@ class TrackerMapView extends ConsumerWidget {
 class _AmapGate extends ConsumerWidget {
   const _AmapGate({
     required this.markers,
+    required this.friendMarkers,
     required this.trails,
     required this.initialTarget,
     required this.initialZoom,
@@ -57,6 +61,7 @@ class _AmapGate extends ConsumerWidget {
   });
 
   final List<MapDeviceMarker> markers;
+  final List<FriendMarker> friendMarkers;
   final List<MapTrail> trails;
   final GeoPoint? initialTarget;
   final double initialZoom;
@@ -84,6 +89,7 @@ class _AmapGate extends ConsumerWidget {
         }
         return AmapTrackerMap(
           markers: markers,
+          friendMarkers: friendMarkers,
           trails: trails,
           initialTarget: initialTarget,
           initialZoom: initialZoom,

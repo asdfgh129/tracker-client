@@ -351,16 +351,36 @@ flutter run \
   --dart-define=JPUSH_APP_KEY=你的AppKey
 ```
 
-验收：登录后 `setAlias("u1@1")` 成功 → 服务端调网关 → 手机收到通知。
+### 9.1 原生接线（已就位，注入真实 AppKey 即生效）
+
+Android 宿主 Manifest 已含 JPush 占位符 meta-data（`JPUSH_PKGNAME` /
+`JPUSH_APPKEY` / `JPUSH_CHANNEL`），插件的 receiver/service 随清单合并自动注入。
+真实 AppKey 通过 gradle property 注入（不提交仓库）：
+
+```bash
+# 推荐：全局 gradle 用户目录（不随任何仓库走）
+echo "JPUSH_APPKEY=你的极光AppKey" >> ~/.gradle/gradle.properties
+# 或项目级：android/gradle.properties 追加一行（确认不提交到仓库）
+```
+
+> `JPUSH_APPKEY`（gradle property，原生 SDK 初始化用）与 `JPUSH_APP_KEY`
+> （`--dart-define`，Dart 侧 setup 用）**必须一致**，两者都要填。
+
+iOS 需要在 Xcode 中开启 **Push Notifications** capability（Runner → Signing
+& Capabilities），并把 APNs 证书/密钥上传极光后台；Dart 侧已在 setup 后调用
+`applyPushAuthority()` 申请通知权限。
+
+验收：登录后别名注册成功 → 服务端调网关 → 手机收到通知。
 
 未配置推送时用 `PUSH_PROVIDER=none`，应用内仍可通过 WebSocket 收事件。
 
-### 9.1 已核对的极光 API（jpush_flutter 3.6.0）
+### 9.2 已核对的极光 API（jpush_flutter 3.6.2）
 
 | 用途 | 签名 |
 |---|---|
 | 创建 | `JPush.newJPush()` → `JPushFlutterInterface` |
 | 初始化 | `setup({appKey, channel, production, debug})`，**同步方法，不能 await** |
+| iOS 权限 | `applyPushAuthority([NotificationSettingsIOS])`，setup 后调用 |
 | 别名 | `Future<Map<dynamic, dynamic>> setAlias(String alias)` |
 | 事件 | `addEventHandler({onReceiveNotification, onOpenNotification, ...})` |
 | 冷启动 | `Future<Map<dynamic, dynamic>> getLaunchAppNotification()` |
@@ -368,7 +388,7 @@ flutter run \
 
 注意：
 
-- 3.6.0 没有 `getLaunchApp()`，旧示例里的这个名字会编译失败；
+- 没有 `getLaunchApp()`，旧示例里的这个名字会编译失败；
 - 业务字段统一放在通知的 `extras`，代码从 `message['extras']` 解析；
 - 厂商通道点击在 Flutter 3.29+ 会触发深链白屏，必须关闭自动深链（见 7.1）。
 
@@ -376,20 +396,32 @@ flutter run \
 
 ## 10. 服务端
 
+服务端使用 **tracker-server 仓库**（`../tracker-server`，Traccar-CN fork，
+已内置 `NotificatorWebhook` 与消息通道），无需再打补丁：
+
 ```bash
-# 1) 把补丁文件放进 Traccar
-cp server/traccar-plugin/src/main/java/org/traccar/notificators/NotificatorWebhook.java \
-   ../traccar/src/main/java/org/traccar/notificators/
+cd ../tracker-server
+./gradlew build          # 产物：target/tracker-server.jar
+# 或直接用发布包（tracker-server-release/），配置 conf/traccar.xml 后启动
+```
 
-# 2) 编辑 NotificatorManager 注册 "webhook"（见 server/README.md）
+推送网关（本仓库 `server/gateway/gateway.js` 为参考实现）：
 
-# 3) 配置 conf/traccar.xml 并重启
+```bash
+GATEWAY_PORT=8090 \
+TRACCAR_WEBHOOK_SECRET=<与 traccar.xml 的 notificator.webhook.secret 一致> \
+GATEWAY_ADMIN_TOKEN=<32+ 随机值> \
+TRACCAR_API_BASE=http://<server>:8082 \
+JPUSH_APP_KEY=<极光AppKey> JPUSH_MASTER_SECRET=<极光MasterSecret> \
+COMMAND_HMAC_KEY=<与 App --dart-define 一致> \
+node server/gateway/gateway.js
 ```
 
 自检：
 
 ```bash
-curl -s http://localhost:8082/api/server | jq .version
+curl -s http://localhost:8082/api/server | jq .version   # 期望 6.16.0-CN-x
+bash server/gateway/test-gateway.sh
 ```
 
 ---

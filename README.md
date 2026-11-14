@@ -13,8 +13,9 @@
 | 工程骨架 + 平台工程 | ✅ android/ ios/ 已生成并配置 |
 | 核心抽象（坐标系 / 地图 / 推送） | ✅ 编译验证通过（Flutter 3.47.9） |
 | **MVP 开发（P0 全量）** | ✅ 已实现（见 CHANGELOG 0.2.0） |
-| 单元测试 | ✅ 58 用例全绿；`flutter analyze` 0 issues |
-| Traccar 推送补丁 + 网关参考实现 | ✅ `server/`（含零依赖 Node.js 网关） |
+| **好友体系（5056 消息通道）** | ✅ 已实现（见 CHANGELOG 0.3.0；服务端 tracker-server CN-1.1） |
+| 单元测试 | ✅ 69 用例全绿；`flutter analyze` 0 issues |
+| 推送网关参考实现 | ✅ `server/`（零依赖 Node.js 网关；正式 NotificatorWebhook 在 tracker-server） |
 | 安全审计（MASVS-L1） | ✅ 首轮审计 + 阻断项整改（见 `docs/11-security-performance-audit.md`） |
 | 待办（外部依赖） | ⬜ 高德/极光 Key、备案号、隐私政策 URL（`--dart-define` 占位） |
 
@@ -39,11 +40,13 @@
 
 - **本机实时上报**：后台定位、断网缓存、开机恢复、省电策略、快捷开关、SOS。
 - **多设备实时地图**：设备列表、状态、聚合、跟随、轨迹尾迹、WebSocket 实时更新。
+- **好友互见位置**：仅互为好友可互见；好友位置实时广播、按需定位请求（对方同意）、
+  申请/同意/删除全流程、离线邀请经极光唤醒（5056 消息通道）。
 - **历史与报表**：行程、停留、路线回放、速度/海拔曲线、GPX/KML/CSV 导出。
 - **事件与推送**：围栏/告警推送、点击直达、应用内事件流、免打扰。
-- **远程指令**：单次定位、开始/停止上报、恢复出厂设置（需服务端支持）。
+- **远程指令**：单次定位、开始/停止上报、恢复出厂设置（经推送网关下发到离线手机）。
 - **多服务器**：自建/托管服务器档案、二维码导入、OIDC、Token 登录、生物识别锁。
-- **可运维**：诊断页（权限、队列、最后上报、日志导出）、崩溃上报、远程配置。
+- **可运维**：诊断页（权限、队列、最后上报、日志导出）、崩溃上报、通知规则自助管理。
 
 ## 技术栈
 
@@ -59,13 +62,13 @@
 | 推送 | 极光 JPush + 厂商通道 + 自建网关；FCM 仅海外/开发 |
 | 坐标 | 数据层 WGS-84，仅渲染层转 GCJ-02 |
 | 可观测 | 默认 `NoopCrashReporter`；海外 Crashlytics，国内待接 Bugly |
-| 后端 | 现有 Traccar Server（REST + WebSocket）+ `NotificatorWebhook` 补丁 |
+| 后端 | tracker-server（Traccar-CN fork：REST + WebSocket + 5056 消息通道；NotificatorWebhook / 指令下行 / 邀请唤醒内置） |
 | 合规 | APP 备案、域名 ICP、隐私同意流、SDK 清单、审图号 |
 
 ## 目录结构
 
 ```
-trackerone/
+tracker-client/
 ├── android/  ios/            # 平台工程（已生成并配置，见 tool/configure-platform.sh）
 ├── docs/                     # 开发文档（先读 00、01、03、09；11 为审计报告）
 ├── lib/
@@ -74,18 +77,18 @@ trackerone/
 │   │   ├── config/           # BuildConfig / 品牌（含备案号占位）
 │   │   ├── location/         # 权限服务、厂商引导
 │   │   ├── map/              # 坐标系、地图抽象、高德适配、隐私同意门
-│   │   ├── network/          # REST / WebSocket / 拦截器 / 证书策略
+│   │   ├── network/          # REST / WebSocket / 5056 消息客户端 / 拦截器 / 证书策略
 │   │   ├── observability/    # 日志脱敏、文件 sink、崩溃上报（同意门控）
 │   │   ├── push/             # PushGateway、极光、FCM、网关客户端、深链路由
-│   │   ├── storage/          # drift 六表、SecureStore、Prefs、数据擦除
+│   │   ├── storage/          # drift 七表、SecureStore、Prefs、数据擦除
 │   │   ├── tracking/         # TrackingEngine 与 SDK 适配
 │   │   └── utils/            # Clock 等基础工具
 │   ├── domain/               # 实体 + AppFailure 错误模型
-│   └── features/             # 11 个业务域（application 控制器 + presentation 页面）
+│   └── features/             # 12 个业务域（application 控制器 + presentation 页面）
 ├── server/
 │   ├── gateway/              # 推送网关参考实现（零依赖 Node.js）+ 联调脚本
-│   └── traccar-plugin/       # NotificatorWebhook 补丁
-├── test/                     # 单元测试（58 用例）
+│   └── traccar-plugin/       # NotificatorWebhook 参考实现（正式版在 tracker-server）
+├── test/                     # 单元测试（69 用例）
 ├── tool/
 │   ├── bootstrap.sh          # 重新生成平台工程（FORCE）
 │   ├── verify.sh             # pub get / 代码生成 / analyze / test

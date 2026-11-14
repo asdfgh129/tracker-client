@@ -192,6 +192,12 @@ class SettingsScreen extends ConsumerWidget {
 
           _SectionHeader(l10n.commonDone),
           ListTile(
+            leading: const Icon(Icons.notifications_active_outlined),
+            title: Text(l10n.settingsNotifications),
+            subtitle: Text(l10n.settingsNotificationsDesc),
+            onTap: () => context.push('/settings/notifications'),
+          ),
+          ListTile(
             leading: const Icon(Icons.monitor_heart_outlined),
             title: Text(l10n.settingsDiagnostics),
             onTap: () => context.push('/diagnostics'),

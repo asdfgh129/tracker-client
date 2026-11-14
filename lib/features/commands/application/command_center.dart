@@ -208,38 +208,9 @@ enum CommandVerification {
   badSignature,
 }
 
-/// 推送消息里的指令消费器（挂到 PushRouter）。
-class RemoteCommandListener {
-  RemoteCommandListener(this._ref);
-
-  final Ref _ref;
-  StreamSubscription<PushMessage>? _subscription;
-
-  void start() {
-    // 由 push 层在网关消息流上调用 [handle]。
-  }
-
-  void handle(PushMessage message) {
-    if (!message.isCommand) return;
-    unawaited(
-      _ref.read(commandCenterProvider).handleIncoming(message),
-    );
-  }
-
-  void dispose() {
-    _subscription?.cancel();
-  }
-}
-
+/// 指令执行入口由 app.dart 注入 PushRouter.onCommand（A1 接线）：
+/// 网关消息流 → CommandCenter.handleIncoming（验签/锁守卫/分发）。
 final commandCenterProvider = Provider<CommandCenter>((ref) => CommandCenter(ref));
-
-final remoteCommandListenerProvider = Provider<RemoteCommandListener>(
-  (ref) {
-    final listener = RemoteCommandListener(ref);
-    ref.onDispose(listener.dispose);
-    return listener;
-  },
-);
 
 /// 诊断用：指令结果摘要（不打印队列内容）。
 String commandResultSummary(CommandResult result) =>

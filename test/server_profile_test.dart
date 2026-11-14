@@ -60,6 +60,25 @@ void main() {
       );
       expect(profile.socketUrl, 'ws://10.0.0.2:8082/api/socket');
     });
+
+    test('messaging url derives host:5056/messaging with inherited scheme', () {
+      final secure = ServerAddressDeriver.derive(
+        input: 'https://track.example.com',
+      );
+      expect(secure.messagingUrl, 'wss://track.example.com:5056/messaging');
+
+      final plain = ServerAddressDeriver.derive(
+        input: 'http://10.0.0.2:8082',
+        allowInsecure: true,
+      );
+      expect(plain.messagingUrl, 'ws://10.0.0.2:5056/messaging');
+
+      final proxied = ServerAddressDeriver.derive(
+        input: 'https://example.com/api',
+      );
+      // 5056 是独立端口，不走反代路径。
+      expect(proxied.messagingUrl, 'wss://example.com:5056/messaging');
+    });
   });
 
   group('ServerAddressDeriver.parseImport (AUTH-03)', () {

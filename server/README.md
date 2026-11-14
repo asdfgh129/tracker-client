@@ -1,13 +1,18 @@
 # server · 中国大陆推送链路
 
+> **当前状态**：`NotificatorWebhook` 已正式并入 **tracker-server 仓库**
+> （`src/main/java/org/traccar/notificators/`，随指令下行与好友邀请唤醒一起演进），
+> 本目录保留的是**参考实现与网关契约文档**。部署以 tracker-server 为准；
+> 网关（`gateway/`）仍是独立部署的 Node.js 服务。
+
 Traccar 6.16 自带 `web` / `firebase` / `traccar` 等通知器，但**没有通用 webhook**，
 而 `firebase` 在中国大陆 Android 不可用。因此需要两件东西：
 
 ```
 Traccar 事件
-   │  NotificatorWebhook（本目录，需打补丁）
+   │  NotificatorWebhook（tracker-server 内置）
    ▼
-自建推送网关（BFF）
+自建推送网关（BFF，本目录 gateway/）
    │  鉴权 / 别名映射 / 去重 / 限流 / 模板 / 回执
    ▼
 极光 JPush REST  ──►  小米 / 华为 / OPPO / vivo / 荣耀 厂商通道
@@ -88,31 +93,26 @@ X-Traccar-Signature: sha256=<hmac_sha256(raw_body, secret)>
 {
   "version": 1,
   "userId": 1,
-  "userEmail": "user@example.com",
   "deviceId": 42,
   "deviceName": "京A·12345",
-  "uniqueId": "12345678",
   "event": {
     "id": 555,
-    "deviceId": 42,
     "type": "geofenceEnter",
     "eventTime": "2026-11-01T08:15:00.000+00:00",
-    "positionId": 987700,
-    "geofenceId": 7,
-    "attributes": {}
-  },
-  "position": {
-    "id": 987700,
-    "deviceId": 42,
-    "latitude": 39.9042,
-    "longitude": 116.4074,
-    "fixTime": "2026-11-01T08:14:58.000+00:00",
-    "attributes": { "batteryLevel": 78 }
+    "geofenceId": 7
   },
   "message": { "title": "围栏进入", "body": "京A·12345 进入「公司」", "digest": "..." },
   "issuedAt": 1793513700000
 }
 ```
+
+> M-10 数据最小化（PIPL）：正式实现（tracker-server 仓库的 `NotificatorWebhook`）
+> 不发送 userEmail / uniqueId / 完整 Position —— 网关只需事件 id / 类型 /
+> 设备名 / 文案即可完成投递与模板渲染。本目录示例已与该实现对齐。
+>
+> 除事件通知外，同一 endpoint 还承载两类 payload：
+> - **指令下行**：顶层带 `command` 字段（设备离线排队时），网关签名后经极光 extras 下发；
+> - **好友邀请唤醒**：`event.type=friendInvite`（目标手机不在线时）。
 
 校验要点：
 
@@ -274,7 +274,7 @@ bash server/gateway/test-gateway.sh
 | `GATEWAY_PORT` | 监听端口（默认 8080） |
 | `TRACCAR_WEBHOOK_SECRET` | 与 `notificator.webhook.secret` 一致 |
 | `JPUSH_APP_KEY` / `JPUSH_MASTER_SECRET` | 极光凭据（仅服务端） |
-| `GATEWAY_ADMIN_TOKEN` | App 注册别名的 Bearer Token（生产换短期 JWT） |
+| `GATEWAY_ADMIN_TOKEN` | **内部运维令牌（仅运维操作）。** App 注册别名用的是 **Traccar 会话 Token**（网关反查 `GET /api/session` 校验身份），不是本令牌 |
 
 生产替换点：幂等与别名存储改 Redis（多实例）、免打扰时段、到达回执。
 

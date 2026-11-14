@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/theme.dart';
 import '../../../app/widgets/common.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/events_controller.dart';
+import 'event_visual.dart';
 
 /// 事件列表（EVT-01/02，docs/02 §3.9：分段筛选、左滑已读）。
 class EventsScreen extends ConsumerStatefulWidget {
@@ -170,7 +170,7 @@ class _EventTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    final (icon, color, label) = _eventVisual(context, l10n, item.event.type);
+    final (icon, color, label) = eventVisual(context, l10n, item.event.type);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -217,70 +217,5 @@ class _EventTile extends StatelessWidget {
         onTap: () => context.push('/event/${item.id}'),
       ),
     );
-  }
-
-  (IconData, Color, String) _eventVisual(
-    BuildContext context,
-    AppLocalizations l10n,
-    String type,
-  ) {
-    final theme = Theme.of(context);
-    return switch (type) {
-      'deviceOnline' => (
-          Icons.wifi,
-          theme.colorScheme.statusOnline,
-          l10n.eventTypeDeviceOnline
-        ),
-      'deviceOffline' => (
-          Icons.wifi_off,
-          theme.colorScheme.statusNeutral,
-          l10n.eventTypeDeviceOffline
-        ),
-      'geofenceEnter' => (
-          Icons.login,
-          theme.colorScheme.primary,
-          l10n.eventTypeGeofenceEnter
-        ),
-      'geofenceExit' => (
-          Icons.logout,
-          theme.colorScheme.primary,
-          l10n.eventTypeGeofenceExit
-        ),
-      'alarm' => (
-          Icons.warning_amber,
-          theme.colorScheme.statusDanger,
-          l10n.eventTypeAlarm
-        ),
-      'sos' => (
-          Icons.emergency,
-          theme.colorScheme.statusDanger,
-          l10n.eventTypeSos
-        ),
-      'overspeed' => (
-          Icons.speed,
-          theme.colorScheme.statusWarning,
-          l10n.eventTypeOverspeed
-        ),
-      'maintenance' => (
-          Icons.build,
-          theme.colorScheme.statusWarning,
-          l10n.eventTypeMaintenance
-        ),
-      'ignitionOn' => (
-          Icons.key,
-          theme.colorScheme.primary,
-          l10n.eventTypeIgnitionOn
-        ),
-      'ignitionOff' => (
-          Icons.key_off,
-          theme.colorScheme.primary,
-          l10n.eventTypeIgnitionOff
-        ),
-      _ => (
-          Icons.info_outline,
-          theme.colorScheme.statusNeutral,
-          l10n.eventTypeUnknown
-        ),
-    };
   }
 }

@@ -12,6 +12,10 @@ abstract final class SecureKeys {
   /// 可选保存的密码（默认不保存，仅用户显式勾选「记住密码」）。
   static String password(int serverId) => 'auth.password.$serverId';
 
+  /// 5056 消息通道的设备密码（好友体系；首次连接自动生成并注册到服务端）。
+  static String messagingPassword(int serverId) =>
+      'messaging.password.$serverId';
+
   static const biometricEnabled = 'auth.biometric.enabled';
 }
 

@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/server_profile.dart';
 import '../../../core/network/traccar_api.dart';
+import '../../../core/observability/logger.dart';
 import '../../../core/providers.dart';
+import '../../../core/push/push_service.dart';
 import '../../../core/storage/database.dart';
 import '../../../core/storage/secure_store.dart';
 import '../../../domain/failures.dart';
+import '../../auth/application/session_controller.dart';
 
 /// 连接测试结果（docs/02 §3.2 表格：成功/401/TLS/超时/非 Traccar）。
 enum ProbeOutcome { ok, reachableNeedsAuth, timeout, tls, notTraccar, networkError }
@@ -177,10 +180,32 @@ class ServerProfileController extends AsyncNotifier<ServerProfileState> {
   /// 激活已有档案（多服务器切换，AUTH-09）。
   Future<void> activate(int id) async {
     final db = ref.watch(appDatabaseProvider);
+    // 换服务器前撤销旧服务器的推送网关别名（必须在 secure.clear() 之前，
+    // 盐值还在；docs/09 §3.4 防串号）。
+    await _deleteAliasBestEffort();
     await db.activateProfile(id);
     // 换服务器必须清掉旧会话缓存（docs/04 §10）。
     await ref.read(secureStoreProvider).clear();
     await _reload();
+  }
+
+  Future<void> _deleteAliasBestEffort() async {
+    try {
+      final session = ref.read(sessionControllerProvider).valueOrNull;
+      final userId = session?.user?.id;
+      final serverId = session?.profile?.id;
+      if (userId == null || serverId == null) return;
+      final salt =
+          await ref.read(secureStoreProvider).read(aliasSaltKey(serverId));
+      await deleteGatewayAliasFor(
+        userId: userId,
+        serverId: serverId,
+        salt: salt,
+        sessionToken: session?.token,
+      );
+    } on Object catch (error) {
+      AppLog.w('push', 'alias delete failed (ignored): $error');
+    }
   }
 
   Future<void> deleteProfile(int id) async {

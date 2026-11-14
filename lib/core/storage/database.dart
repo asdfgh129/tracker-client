@@ -110,6 +110,30 @@ class TrackingSnapshots extends Table {
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// 好友关系缓存（v2：好友体系）。
+///
+/// 服务端 tc_friends 的镜像 + 5056 消息通道实时更新。
+/// 好友身份以 uniqueId 为准（消息协议不暴露 deviceId；
+/// 实时广播的 from.id 会回填 [deviceId] 供地图标记复用）。
+/// 只有 status=accepted 的好友才可能有最后位置（服务端强制校验）。
+@DataClassName('FriendRow')
+class FriendRows extends Table {
+  IntColumn get serverId => integer()();
+  TextColumn get uniqueId => text()();
+
+  @override
+  Set<Column> get primaryKey => {serverId, uniqueId};
+
+  IntColumn get deviceId => integer().nullable()(); // 广播 from.id 回填
+  TextColumn get name => text().nullable()();
+  TextColumn get status => text()(); // accepted | pending_in | pending_out
+  BoolColumn get online => boolean().withDefault(const Constant(false))();
+  RealColumn get lastLatitude => real().nullable()();
+  RealColumn get lastLongitude => real().nullable()();
+  IntColumn get lastTime => integer().nullable()(); // ms epoch
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 @DriftDatabase(
   tables: [
     ServerProfiles,
@@ -118,6 +142,7 @@ class TrackingSnapshots extends Table {
     EventRows,
     PendingActions,
     TrackingSnapshots,
+    FriendRows,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -126,7 +151,17 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.open(String path) : super(_openConnection(path));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          // v2：好友表（好友体系新增）。
+          if (from < 2) {
+            await m.createTable(friendRows);
+          }
+        },
+      );
 
   static LazyDatabase _openConnection(String path) {
     return LazyDatabase(() async {
@@ -361,6 +396,51 @@ class AppDatabase extends _$AppDatabase {
             ))
           .getSingleOrNull();
 
+  // ---- 好友（v2）----
+
+  /// 响应式好友列表（好友页 / 地图好友图层共用）。
+  Stream<List<FriendRow>> watchFriends(int serverId) =>
+      (select(friendRows)
+            ..where((t) => t.serverId.equals(serverId))
+            ..orderBy([(t) => OrderingTerm.asc(t.uniqueId)]))
+          .watch();
+
+  Future<List<FriendRow>> friendsFor(int serverId) =>
+      (select(friendRows)..where((t) => t.serverId.equals(serverId))).get();
+
+  /// friends.list 快照 / 消息推送的全量覆盖（幂等 replace）。
+  Future<void> upsertFriends(
+    int serverId,
+    Iterable<FriendRowsCompanion> rows,
+  ) =>
+      batch((batch) {
+        batch.insertAll(friendRows, rows, mode: InsertMode.replace);
+      });
+
+  /// 实时广播位置更新（幂等覆盖单行；同时回填 deviceId）。
+  Future<void> updateFriendPosition(
+    int serverId,
+    String uniqueId, {
+    int? deviceId,
+    required double latitude,
+    required double longitude,
+    required int lastTime,
+  }) =>
+      (update(friendRows)
+            ..where(
+              (t) => t.serverId.equals(serverId) & t.uniqueId.equals(uniqueId),
+            ))
+          .write(FriendRowsCompanion(
+        deviceId: deviceId == null ? const Value.absent() : Value(deviceId),
+        lastLatitude: Value(latitude),
+        lastLongitude: Value(longitude),
+        lastTime: Value(lastTime),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ));
+
+  Future<void> clearFriends(int serverId) =>
+      (delete(friendRows)..where((t) => t.serverId.equals(serverId))).go();
+
   // ---- 数据删除（CN-09：本地数据删除入口）----
 
   Future<void> wipeServerData(int serverId) async {
@@ -368,6 +448,7 @@ class AppDatabase extends _$AppDatabase {
       await clearDevices(serverId);
       await clearPositions(serverId);
       await clearEvents(serverId);
+      await clearFriends(serverId);
     });
   }
 
@@ -379,6 +460,7 @@ class AppDatabase extends _$AppDatabase {
       await delete(eventRows).go();
       await delete(pendingActions).go();
       await delete(trackingSnapshots).go();
+      await delete(friendRows).go();
     });
   }
 }

@@ -57,6 +57,11 @@ class JpushPushGateway implements PushGateway {
       debug: kDebugMode,
     );
 
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      // iOS 必须显式申请通知权限（Android 由系统 POST_NOTIFICATIONS 弹窗处理）。
+      _jpush.applyPushAuthority();
+    }
+
     _jpush.addEventHandler(
       onReceiveNotification: (Map<String, dynamic> message) async {
         _messages.add(_toMessage(message));

@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.3.0（好友体系 + 通信补环）
+
+### 好友体系（5056 消息通道）
+
+- `core/network/messaging_client.dart`：5056 WebSocket 客户端——设备认证
+  （uniqueId + 设备密码）、请求-应答按 type 关联、指数退避重连（1s→30s±20%）、
+  password_mismatch 置 failed 不自动重试（明确提示管理员重置路径）
+- 好友全流程：按对方 8 位 uniqueId 加好友、接受/拒绝申请（实时横幅 + 好友页双入口）、
+  删除好友、friends.list 快照与 drift 缓存
+- 实时定位：好友位置广播落库（`location.push{status:"update"}`）、发起定位请求
+  （position/timeout/declined/offline 四态反馈）、收到请求全局弹窗 →
+  同意分享本机位置 / 拒绝
+- 好友页（`features/friends/`）+ 底部「好友」tab（track 模式隐藏，需服务器+登录守卫）
+- 地图好友图层：accepted 且有位置的好友上地图（`FriendMarker`；好友设备可能
+  不在 REST 设备列表——按 uniqueId 独立建模）
+- 存储升级：drift schemaVersion 2 `friend_rows`（PK serverId+uniqueId）+ 迁移分支
+- 通道生命周期：前台连接；跟踪运行中后台保活；设备密码首次连接自动生成并注册
+  （Secure Storage `messaging.password.<serverId>`，防 8 位 uniqueId 被冒用）
+- 11 个新单测：消息编解码/关联/幂等/容错、messagingUrl 派生（69 用例全绿）
+
+### 通信与装配补环（与服务端对齐）
+
+- PushRouter 三回调接线（事件导航/应用内横幅/指令执行）+ consumePending 会话放行；
+  此前推送消息解析后不产生任何 UI 效果
+- 深链接入：`DeepLinkHandler.listenAppLinks` 实际调用（冷启动+运行期）；
+  `trackerone://server?url=` 传递并预填服务器地址
+- 前台事件横幅（WS 与推送双源、eventId 去重、状态类事件降噪）
+- factoryReset 远程指令：横幅二次确认后执行
+- 登出/切换服务器撤销推送网关别名（防串号，docs/09 §3.4）
+- JPush 原生接线：AndroidManifest meta-data 占位符（gradle `-PJPUSH_APPKEY` 注入）、
+  iOS `applyPushAuthority`；runbook §9 更新 AppKey 注入与 iOS capability 步骤
+- 通知规则管理：`/api/notifications` CRUD + 设置子页——管理员创建的用户
+  可自助开启事件提醒与离线推送（服务端默认规则只覆盖自注册用户）
+
+### 服务端（tracker-server CN-1.1，见该仓库 CHANGELOG）
+
+- 指令下行 webhook（离线排队 → 网关 → 极光 extras，App 验签执行）
+- 好友位置实时广播（`messaging.locationBroadcast`，默认开）
+- 好友邀请离线唤醒（friendInvite webhook）
+- friends.list 响应补充设备 id
+
+### 文档
+
+- server/README.md：payload 契约对齐最小化实现（M-10）、GATEWAY_ADMIN_TOKEN
+  表述纠正（App 用 Traccar 会话 Bearer）、标注正式实现位于 tracker-server
+
 ## 0.2.0（MVP 实现）
 
 ### 应用层（对齐 docs/01 PRD 全部 P0）

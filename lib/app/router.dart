@@ -9,6 +9,7 @@ import '../features/auth/presentation/app_lock_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/devices/presentation/device_detail_screen.dart';
 import '../features/diagnostics/presentation/diagnostics_screen.dart';
+import '../features/friends/presentation/friends_screen.dart';
 import '../features/server/application/server_profile_controller.dart';
 import '../features/devices/presentation/devices_screen.dart';
 import '../features/events/presentation/event_detail_screen.dart';
@@ -21,6 +22,7 @@ import '../features/onboarding/presentation/privacy_gate_screen.dart';
 import '../features/server/presentation/server_setup_screen.dart';
 import '../features/settings/application/settings_controller.dart';
 import '../features/settings/presentation/about_screen.dart';
+import '../features/settings/presentation/notification_rules_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/tracking/presentation/tracking_screen.dart';
 import '../features/tracking/presentation/tracking_settings_screen.dart';
@@ -78,6 +80,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // 3) 需要服务器的页面。
       final needsServer = path.startsWith('/map') ||
           path.startsWith('/devices') ||
+          path.startsWith('/friends') ||
           path.startsWith('/events') ||
           path.startsWith('/tracking') ||
           path.startsWith('/device/') ||
@@ -105,7 +108,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/server',
-        builder: (context, state) => const ServerSetupScreen(),
+        builder: (context, state) => ServerSetupScreen(
+          initialImportUrl: state.uri.queryParameters['url'],
+        ),
       ),
       GoRoute(
         path: '/login',
@@ -139,6 +144,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/devices',
                 builder: (context, state) => const DevicesScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/friends',
+                builder: (context, state) => const FriendsScreen(),
               ),
             ],
           ),
@@ -196,6 +209,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TrackingSettingsScreen(),
       ),
       GoRoute(
+        path: '/settings/notifications',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const NotificationRulesScreen(),
+      ),
+      GoRoute(
         path: '/settings/about',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const AboutScreen(),
@@ -228,7 +246,8 @@ class DeepLinkHandler {
       case 'server':
         final url = uri.queryParameters['url'];
         if (url != null && url.isNotEmpty) {
-          _goRouter.push('/server');
+          // 带参跳转：服务器页预填地址（此前 url 被丢弃）。
+          _goRouter.push('/server?url=${Uri.encodeQueryComponent(url)}');
         }
       default:
         break;

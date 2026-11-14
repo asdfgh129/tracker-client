@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/map/geo_point.dart';
 import '../../../core/map/map_models.dart';
+import '../../../core/storage/database.dart';
 import '../../../core/storage/preferences.dart';
 import '../../../domain/entities/models.dart';
 import '../../devices/application/devices_controller.dart';
+import '../../friends/application/friends_controller.dart';
 import '../../settings/application/settings_controller.dart';
 
 /// 聚合簇（MAP-04：>50 标记时网格聚合）。
@@ -144,16 +146,18 @@ class TrailBuffer {
 
 final trailBufferProvider = Provider<TrailBuffer>((ref) => TrailBuffer());
 
-/// 地图渲染数据（标记/尾迹/聚合），由设备数据 + 查询状态派生。
+/// 地图渲染数据（标记/尾迹/聚合/好友标记），由设备数据 + 查询状态派生。
 class MapRenderState {
   const MapRenderState({
     this.markers = const [],
+    this.friendMarkers = const [],
     this.trails = const [],
     this.clusters = const [],
     this.initialTarget,
   });
 
   final List<MapDeviceMarker> markers;
+  final List<FriendMarker> friendMarkers;
   final List<MapTrail> trails;
   final List<MapCluster> clusters;
   final GeoPoint? initialTarget;
@@ -175,6 +179,7 @@ final mapRenderProvider = Provider<MapRenderState>((ref) {
   final query = ref.watch(mapQueryProvider);
   final settings = ref.watch(settingsProvider);
   final buffer = ref.watch(trailBufferProvider);
+  final friends = ref.watch(friendsListProvider).valueOrNull ?? const <FriendRow>[];
 
   if (devicesState == null) return const MapRenderState();
 
@@ -183,6 +188,7 @@ final mapRenderProvider = Provider<MapRenderState>((ref) {
   final lowerQuery = query.searchQuery.toLowerCase();
 
   final markers = <MapDeviceMarker>[];
+  final friendMarkers = <FriendMarker>[];
   final trails = <MapTrail>[];
 
   for (final device in devicesState.devices) {
@@ -216,12 +222,29 @@ final mapRenderProvider = Provider<MapRenderState>((ref) {
     }
   }
 
+  // 好友图层（好友体系）：仅 accepted 且有位置的好友上地图。
+  for (final friend in friends) {
+    if (friend.status != 'accepted') continue;
+    if (friend.lastLatitude == null || friend.lastLongitude == null) continue;
+    if (lowerQuery.isNotEmpty &&
+        !(friend.name ?? '').toLowerCase().contains(lowerQuery) &&
+        !friend.uniqueId.contains(lowerQuery)) {
+      continue;
+    }
+    friendMarkers.add(FriendMarker(
+      uniqueId: friend.uniqueId,
+      label: (friend.name?.isNotEmpty ?? false) ? friend.name! : friend.uniqueId,
+      point: GeoPoint(friend.lastLatitude!, friend.lastLongitude!),
+      online: friend.online,
+    ));
+  }
+
   final clusters =
       settings.mapCluster && markers.length > 50
           ? MapClusterer.cluster(markers)
           : const <MapCluster>[];
 
-  // 初始相机：跟随目标 > 本机 > 第一个设备。
+  // 初始相机：跟随目标 > 本机 > 第一个设备 > 第一个好友。
   GeoPoint? initialTarget;
   final followTarget = query.followDeviceId == null
       ? null
@@ -234,10 +257,13 @@ final mapRenderProvider = Provider<MapRenderState>((ref) {
     initialTarget = GeoPoint(self.latitude, self.longitude);
   } else if (markers.isNotEmpty) {
     initialTarget = markers.first.point;
+  } else if (friendMarkers.isNotEmpty) {
+    initialTarget = friendMarkers.first.point;
   }
 
   return MapRenderState(
     markers: markers,
+    friendMarkers: friendMarkers,
     trails: trails,
     clusters: clusters,
     initialTarget: initialTarget,

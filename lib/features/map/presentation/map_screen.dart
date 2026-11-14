@@ -64,6 +64,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with WidgetsBindingObserv
                   ref.read(mapQueryProvider.notifier).onUserPan(),
               child: TrackerMapView(
                 markers: render.markers,
+                friendMarkers: render.friendMarkers,
                 trails: render.trails,
                 initialTarget: followTarget ?? render.initialTarget,
                 onMarkerTap: (marker) {

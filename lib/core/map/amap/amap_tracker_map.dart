@@ -19,6 +19,7 @@ import 'amap_bootstrap.dart';
 class AmapTrackerMap extends StatefulWidget {
   const AmapTrackerMap({
     required this.markers,
+    this.friendMarkers = const [],
     this.trails = const [],
     this.initialTarget,
     this.initialZoom = 15,
@@ -29,6 +30,9 @@ class AmapTrackerMap extends StatefulWidget {
   });
 
   final List<MapDeviceMarker> markers;
+
+  /// 好友标记（好友体系）：与设备标记共用渲染管线，label 区分。
+  final List<FriendMarker> friendMarkers;
   final List<MapTrail> trails;
 
   /// WGS-84。为空时取第一个标记，仍然为空则用天安门。
@@ -66,7 +70,9 @@ class _AmapTrackerMapState extends State<AmapTrackerMap> {
     final target = widget.initialTarget ??
         (widget.markers.isNotEmpty
             ? widget.markers.first.point
-            : const GeoPoint(39.9087, 116.3975));
+            : (widget.friendMarkers.isNotEmpty
+                ? widget.friendMarkers.first.point
+                : const GeoPoint(39.9087, 116.3975)));
     final gcjTarget = _toRender(target);
 
     return AMapWidget(
@@ -103,6 +109,12 @@ class _AmapTrackerMapState extends State<AmapTrackerMap> {
           onTap: (_) {
             widget.onMarkerTap?.call(marker);
           },
+        ),
+      // 好友标记：label 前缀区分身份（标记图标统一由地图默认样式渲染）。
+      for (final friend in widget.friendMarkers)
+        Marker(
+          position: _toLatLng(friend.point),
+          infoWindow: InfoWindow(title: '👤 ${friend.label}'),
         ),
     };
   }

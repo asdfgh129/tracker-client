@@ -37,6 +37,16 @@ class ServerProfile {
     return uri.replace(scheme: scheme, path: '/api/socket').toString();
   }
 
+  /// 消息通道地址（5056 `/messaging`，好友关系与定位请求，docs/04 § messaging）。
+  ///
+  /// 推导：与 API 同 host，端口固定 5056；scheme 继承 API（https→wss）。
+  /// 独立端口不走反向代理路径。
+  String get messagingUrl {
+    final uri = Uri.parse(apiBaseUrl);
+    final scheme = uri.scheme == 'http' ? 'ws' : 'wss';
+    return '$scheme://${uri.host}:5056/messaging';
+  }
+
   ServerProfile copyWith({
     int? id,
     String? name,

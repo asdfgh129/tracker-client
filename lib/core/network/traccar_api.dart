@@ -301,6 +301,43 @@ class TraccarApi {
     return CommandResult(queued: status == 202, raw: _decodeMap(response.data));
   }
 
+  // ---- 通知规则（离线推送开关；管理员创建的用户需在此自行开启）----
+
+  /// 当前用户的通知规则。
+  Future<List<Map<String, dynamic>>> getNotifications() async {
+    final response = await dio.get<String>('/api/notifications');
+    if (response.statusCode != 200) throw _mapError(response);
+    return _decodeList(response.data)
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+  }
+
+  /// 新建通知规则。notificators 建议 `web,webhook`：
+  /// web = 在线 WebSocket 推送，webhook = 离线经推送网关 → 极光。
+  Future<Map<String, dynamic>> createNotificationRule({
+    required String type,
+    required bool always,
+    required String notificators,
+  }) async {
+    final response = await dio.post<String>(
+      '/api/notifications',
+      data: <String, dynamic>{
+        'type': type,
+        'always': always,
+        'notificators': notificators,
+      },
+    );
+    if (response.statusCode != 200) throw _mapError(response);
+    return _decodeMap(response.data);
+  }
+
+  /// 删除通知规则。
+  Future<void> deleteNotificationRule(int id) async {
+    final response = await dio.delete<String>('/api/notifications/$id');
+    final status = response.statusCode ?? 0;
+    if (status != 200 && status != 204) throw _mapError(response);
+  }
+
   // ---- 内部工具 ----
 
   static String _iso(DateTime time) =>

@@ -366,6 +366,7 @@ class SessionController extends AsyncNotifier<SessionState> {
     if (serverId != null) {
       await _clearToken(profile!);
     }
+    await _deleteGatewayAlias(current);
     // H-6：登出同样清缓存、日志与导出文件（与「删除本地数据」一致）。
     await ref.read(appDatabaseProvider).wipeAllCache();
     try {
@@ -379,6 +380,28 @@ class SessionController extends AsyncNotifier<SessionState> {
     state = AsyncData(
       SessionState(phase: SessionPhase.anonymous, profile: profile),
     );
+  }
+
+  /// 登出时撤销推送网关别名（docs/09 §3.4 防串号）。
+  ///
+  /// 必须在 `secure.clear()` 之前调用（盐值还在）；
+  /// 旧 Token 此刻可能已撤销，网关按注册时的映射删除，best-effort。
+  Future<void> _deleteGatewayAlias(SessionState? session) async {
+    final userId = session?.user?.id;
+    final serverId = session?.profile?.id;
+    if (userId == null || serverId == null) return;
+    try {
+      final salt =
+          await ref.read(secureStoreProvider).read(aliasSaltKey(serverId));
+      await deleteGatewayAliasFor(
+        userId: userId,
+        serverId: serverId,
+        salt: salt,
+        sessionToken: session?.token,
+      );
+    } on Object catch (error) {
+      AppLog.w('push', 'alias delete failed (ignored): $error');
+    }
   }
 
   /// 401 统一入口。
