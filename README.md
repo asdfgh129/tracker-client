@@ -146,6 +146,7 @@ flutter run \
 | [09-china-launch.md](docs/09-china-launch.md) | 中国大陆地图/推送/备案/商店落地方案 |
 | [10-setup-runbook.md](docs/10-setup-runbook.md) | 环境搭建、平台工程、M0 验收手册 |
 | [11-security-performance-audit.md](docs/11-security-performance-audit.md) | 安全（MASVS-L1）与性能审计、整改记录、工具链问题 |
+| [12-final-delivery-report.md](docs/12-final-delivery-report.md) | 最终交付报告：功能明细、验证结果、外部依赖清单 |
 | [server/README.md](server/README.md) | Traccar webhook 补丁、推送网关契约（含安全基线）、联调 |
 
 ## 许可证与商标
