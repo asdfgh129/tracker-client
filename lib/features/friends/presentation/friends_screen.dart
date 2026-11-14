@@ -5,6 +5,7 @@ import '../../../app/theme.dart';
 import '../../../app/widgets/common.dart';
 import '../../../core/network/messaging_client.dart';
 import '../../../core/storage/database.dart';
+import '../../../domain/failures.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/friends_controller.dart';
 
@@ -115,9 +116,10 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
           ),
         ),
       );
-    } on StateError catch (error) {
+    } on AppFailure catch (error) {
       messenger.showSnackBar(
-        SnackBar(content: Text('${l10n.friendsAddFailed}: ${error.message}')),
+        SnackBar(
+            content: Text('${l10n.friendsAddFailed}: ${error.userMessage}')),
       );
     } on Object catch (error) {
       messenger.showSnackBar(
@@ -355,10 +357,10 @@ class _FriendTileState extends ConsumerState<_FriendTile> {
                         _ => l10n.friendsLocateResultTimeout,
                       }),
                     ));
-                  } on StateError catch (error) {
+                  } on AppFailure catch (error) {
                     messenger.showSnackBar(SnackBar(
                       content: Text(
-                          '${l10n.friendsLocateFailed}: ${error.message}'),
+                          '${l10n.friendsLocateFailed}: ${error.userMessage}'),
                     ));
                   } finally {
                     if (mounted) setState(() => _locating = false);

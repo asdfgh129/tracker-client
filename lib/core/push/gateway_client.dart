@@ -50,7 +50,11 @@ class PushGatewayClient {
   }
 
   /// 注册/更新别名。App 会话 Token 用于鉴权（网关校验后映射）。
-  Future<bool> registerAlias({
+  ///
+  /// 返回网关为该别名签发的**指令签名密钥**（H-4，每别名独立）；
+  /// null = 注册失败。密钥经 HTTPS 下发，客户端存 Secure Storage，
+  /// 用于校验下行远程指令的 HMAC 签名。
+  Future<String?> registerAlias({
     required String alias,
     required String platform,
     String? vendor,
@@ -58,7 +62,7 @@ class PushGatewayClient {
     String? deviceModel,
   }) async {
     try {
-      final response = await _dio.post<void>(
+      final response = await _dio.post<Map<String, dynamic>>(
         '/v1/aliases',
         data: {
           'alias': alias,
@@ -68,12 +72,15 @@ class PushGatewayClient {
           if (deviceModel != null) 'deviceModel': deviceModel,
         },
       );
-      return response.statusCode != null &&
+      final ok = response.statusCode != null &&
           response.statusCode! >= 200 &&
           response.statusCode! < 300;
+      if (!ok) return null;
+      final secret = response.data?['commandSecret']?.toString();
+      return (secret != null && secret.length >= 32) ? secret : null;
     } on DioException catch (error) {
       AppLog.w('push', 'alias register failed: ${error.response?.statusCode}');
-      return false;
+      return null;
     }
   }
 

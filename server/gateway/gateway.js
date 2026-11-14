@@ -2,8 +2,9 @@
  * TrackerOne 推送网关（BFF-lite，ADR-013）· 参考实现
  *
  * 零依赖 Node.js（>= 18）。职责边界见 docs/08 ADR-013：
- *   做：接收 Traccar webhook（HMAC 鉴权）、event.id 幂等、限流、
- *       别名签发与归属校验、模板渲染、下发极光 REST。
+ *   做：接收 Traccar webhook（HMAC 鉴权）、event.id 幂等、限流（超限合并
+ *       延后补发）、别名签发与归属校验、中英双语模板渲染、下发极光 REST
+ *       （失败指数退避重试 + 死信 + /v1/flush 手动补发）。
  *   不做：不代理 REST/WebSocket、不存业务数据、不做账号体系。
  *
  * ===== 安全设计（对应安全审计整改）=====
@@ -15,8 +16,10 @@
  * C-2：盐值随机 128bit，别名/主题不可枚举（避免他人订阅事件推送）。
  * M-2：请求体上限 → 413；JSON/URL 解析失败 → 400；别名表与限流表
  *      有容量上限与 TTL，避免内存型 DoS。
- * H-4：下行远程指令带 HMAC 签名（userId|command|issuedAt），
- *      App 侧验签（COMMAND_HMAC_KEY）。
+ * H-4：下行远程指令带 HMAC 签名（userId|command|issuedAt），但签名密钥
+ *      是**注册时网关为每个别名生成的独立 commandSecret**（HTTPS + 会话
+ *      Token 鉴权后下发，客户端存 Secure Storage）。不再使用打进 App 的
+ *      全局共享密钥——反编译客户端拿不到任何可用的指令签名密钥。
  *
  * 环境变量（**全部必填项缺失即拒绝启动**）：
  *   TRACCAR_WEBHOOK_SECRET  与 traccar.xml notificator.webhook.secret 一致
@@ -24,7 +27,6 @@
  *   TRACCAR_API_BASE        用于反查会话身份，如 https://track.example.com
  *   JPUSH_APP_KEY           极光 AppKey
  *   JPUSH_MASTER_SECRET     极光 Master Secret（只放服务端）
- *   COMMAND_HMAC_KEY        远程指令签名密钥（与 App dart-define 一致）
  *   GATEWAY_PORT            默认 8080
  *
  * 运行：
@@ -43,7 +45,6 @@ const WEBHOOK_SECRET = process.env.TRACCAR_WEBHOOK_SECRET || '';
 const ADMIN_TOKEN = process.env.GATEWAY_ADMIN_TOKEN || '';
 const JPUSH_APP_KEY = process.env.JPUSH_APP_KEY || '';
 const JPUSH_MASTER_SECRET = process.env.JPUSH_MASTER_SECRET || '';
-const COMMAND_HMAC_KEY = process.env.COMMAND_HMAC_KEY || '';
 const TRACCAR_API_BASE = (process.env.TRACCAR_API_BASE || '').replace(/\/+$/, '');
 
 // 允许本地联调用弱配置，但必须显式声明；生产（NODE_ENV=production）禁止。
@@ -65,12 +66,11 @@ if (!TRACCAR_API_BASE || !/^https:\/\//.test(TRACCAR_API_BASE)) {
 if (IS_PROD && ADMIN_TOKEN.length < 32) {
   fatal('GATEWAY_ADMIN_TOKEN 长度不足 32（生产要求强随机）');
 }
-if (!COMMAND_HMAC_KEY && !ALLOW_INSECURE_DEV) {
-  fatal('缺少 COMMAND_HMAC_KEY（下行远程指令签名密钥）');
-}
 
 // ---- 存储（单实例内存实现；多实例换 Redis）----
-// alias -> { userId, serverId, platform, vendor, appVersion, registeredAt, lastSeenAt }
+// alias -> { userId, serverId, commandSecret, platform, vendor, appVersion,
+//            registeredAt, lastSeenAt }
+// commandSecret：注册时为每个别名生成的独立指令签名密钥（H-4）。
 const aliases = new Map();
 // eventId -> 时间戳（幂等）
 const seenEvents = new Map();
@@ -78,6 +78,10 @@ const seenEvents = new Map();
 const rateWindow = new Map();
 // userId -> salt（别名盐值）
 const salts = new Map();
+// alias -> [payload]（限流合并队列：超限的投递延后补发，不直接丢弃）
+const pendingPushes = new Map();
+// deadId -> { alias, payload, locale, attempts, lastError, failedAt }（死信）
+const deadLetters = new Map();
 
 const MAX_ALIASES = 200_000;
 const MAX_SEEN_EVENTS = 500_000;
@@ -87,15 +91,30 @@ const SALT_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 const RATE_LIMIT_PER_MINUTE = 60;
 const MAX_BODY_BYTES = 256 * 1024;
 
+// ---- 韧性（自 opencode 线 Go 网关移植）----
+// 极光投递失败：指数退避后台重试（不阻塞 webhook 响应），仍失败进死信，
+// 由 `POST /v1/flush`（管理令牌）手动补发。4xx（鉴权/参数）不重试直接死信。
+const PUSH_MAX_ATTEMPTS = 3;
+const PUSH_RETRY_BASE_MS = 2_000;
+const PUSH_RETRY_MAX_MS = 30_000;
+const MAX_PENDING_PER_ALIAS = 20;
+const MAX_DEAD_LETTERS = 10_000;
+const PENDING_FLUSH_DELAY_MS = 60_000; // 限流窗口长度
+
 function log(...args) {
   console.log(new Date().toISOString(), ...args);
 }
 
 // ---- M-2：定期清扫 + 容量上限 ----
+const DEAD_LETTER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 function sweep() {
   const now = Date.now();
   for (const [id, t] of seenEvents) {
     if (now - t > EVENT_TTL_MS) seenEvents.delete(id);
+  }
+  for (const [id, entry] of deadLetters) {
+    if (now - entry.failedAt > DEAD_LETTER_TTL_MS) deadLetters.delete(id);
   }
   for (const [alias, info] of aliases) {
     // 修正：以投递时间（lastSeenAt）判断活跃度，而非注册时间。
@@ -208,64 +227,81 @@ async function resolveUserId(traccarToken) {
   }
 }
 
-// ---- 模板渲染（docs/09 §3.7）----
-function renderMessage(payload) {
+// ---- 模板渲染（docs/09 §3.7；Traccar webhook 头 X-Locale 决定语言）----
+function renderMessage(payload, locale = 'zh') {
   const message = payload.message || {};
   if (message.title || message.body) {
     return { title: message.title || 'TrackerOne', body: message.body || '' };
   }
   const type = (payload.event && payload.event.type) || 'event';
   const deviceName = payload.deviceName || '';
-  const templates = {
-    geofenceEnter: { title: '进入围栏', body: `${deviceName} 进入围栏区域` },
-    geofenceExit: { title: '离开围栏', body: `${deviceName} 离开围栏区域` },
-    deviceOffline: { title: '设备离线', body: `${deviceName} 已离线` },
-    deviceOnline: { title: '设备上线', body: `${deviceName} 已上线` },
-    alarm: { title: '告警', body: `${deviceName} 触发告警` },
-    overspeed: { title: '超速', body: `${deviceName} 超速行驶` },
-    sos: { title: 'SOS 求助', body: `${deviceName} 发送 SOS 求助` },
-  };
+  const templates =
+    locale === 'en'
+      ? {
+          geofenceEnter: { title: 'Geofence entered', body: `${deviceName} entered a geofence` },
+          geofenceExit: { title: 'Geofence exited', body: `${deviceName} left a geofence` },
+          deviceOffline: { title: 'Device offline', body: `${deviceName} went offline` },
+          deviceOnline: { title: 'Device online', body: `${deviceName} is back online` },
+          alarm: { title: 'Alarm', body: `${deviceName} triggered an alarm` },
+          overspeed: { title: 'Overspeed', body: `${deviceName} is speeding` },
+          sos: { title: 'SOS', body: `${deviceName} sent an SOS` },
+        }
+      : {
+          geofenceEnter: { title: '进入围栏', body: `${deviceName} 进入围栏区域` },
+          geofenceExit: { title: '离开围栏', body: `${deviceName} 离开围栏区域` },
+          deviceOffline: { title: '设备离线', body: `${deviceName} 已离线` },
+          deviceOnline: { title: '设备上线', body: `${deviceName} 已上线` },
+          alarm: { title: '告警', body: `${deviceName} 触发告警` },
+          overspeed: { title: '超速', body: `${deviceName} 超速行驶` },
+          sos: { title: 'SOS 求助', body: `${deviceName} 发送 SOS 求助` },
+        };
   const template =
     templates[type] || { title: 'TrackerOne', body: `${deviceName} ${type}` };
   return { title: template.title, body: template.body };
 }
 
-/** H-4：为下行远程指令生成签名（与 App 侧同构）。 */
-function signCommand(userId, command, issuedAt) {
-  if (!COMMAND_HMAC_KEY) return null;
+/** H-4：为下行远程指令生成签名（与 App 侧同构；密钥为别名独立密钥）。 */
+function signCommand(userId, command, issuedAt, commandSecret) {
+  if (!commandSecret) return null;
   return crypto
-    .createHmac('sha256', COMMAND_HMAC_KEY)
+    .createHmac('sha256', commandSecret)
     .update(`${userId}|${command}|${issuedAt}`)
     .digest('base64url');
 }
 
-async function pushViaJPush(alias, payload) {
-  if (!JPUSH_APP_KEY || !JPUSH_MASTER_SECRET) {
-    log('jpush not configured; event dropped (alias=' + alias + ')');
-    return false;
-  }
+// ---- 极光投递（韧性：首试内联 + 指数退避后台重试 + 死信）----
+
+function deadLetter(alias, payload, locale, attempts, lastError) {
+  const id = `${alias}:${payload.event && payload.event.id}:${Date.now()}`;
+  deadLetters.set(id, { alias, payload, locale, attempts, lastError, failedAt: Date.now() });
+  evictIfNeeded(deadLetters, MAX_DEAD_LETTERS);
+  log('dead letter', `alias=${alias} attempts=${attempts} error=${lastError}`);
+}
+
+/** 用别名当前信息构建极光请求体；别名已被删除时返回 null。 */
+function buildNotification(alias, payload, locale) {
   const info = aliases.get(alias);
   if (!info) {
     log('alias not registered; push skipped (alias=' + alias + ')');
-    return false;
+    return null;
   }
   info.lastSeenAt = Date.now();
 
-  const { title, body } = renderMessage(payload);
+  const { title, body } = renderMessage(payload, locale);
   const extras = {
     eventId: String((payload.event && payload.event.id) || ''),
     deviceId: String(payload.deviceId || ''),
     type: (payload.event && payload.event.type) || '',
   };
 
-  // 若上游要求下发远程指令，附带 HMAC 签名（H-4）。
+  // 若上游要求下发远程指令，附带 HMAC 签名（H-4，别名独立密钥）。
   const command = payload.command;
   if (command) {
     const issuedAt = Date.now();
-    const sig = signCommand(info.userId, command, issuedAt);
+    const sig = signCommand(info.userId, command, issuedAt, info.commandSecret);
     if (!sig) {
-      log('command dropped: COMMAND_HMAC_KEY 未配置');
-      return false;
+      log('command dropped: alias 无 commandSecret（旧注册记录）');
+      return null;
     }
     extras.command = String(command);
     extras.userId = String(info.userId);
@@ -273,7 +309,7 @@ async function pushViaJPush(alias, payload) {
     extras.sig = sig;
   }
 
-  const notification = {
+  return {
     platform: ['android', 'ios'],
     audience: { alias: [alias] },
     notification: {
@@ -285,28 +321,125 @@ async function pushViaJPush(alias, payload) {
       apns_production: IS_PROD,
     },
   };
+}
 
+async function jpushPush(notification) {
   const auth = Buffer.from(`${JPUSH_APP_KEY}:${JPUSH_MASTER_SECRET}`).toString('base64');
-  try {
-    const response = await fetch('https://api.jpush.cn/v3/push', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Basic ${auth}`,
-      },
-      body: JSON.stringify(notification),
-    });
-    const text = await response.text();
-    if (!response.ok) {
-      log('jpush failed', response.status, text.slice(0, 200));
-      return false;
-    }
-    log('jpush sent', 'msg_id=' + (JSON.parse(text).msg_id || '-'));
-    return true;
-  } catch (error) {
-    log('jpush error', error.message);
+  const response = await fetch('https://api.jpush.cn/v3/push', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Basic ${auth}`,
+    },
+    body: JSON.stringify(notification),
+  });
+  const text = await response.text();
+  return { status: response.status, ok: response.ok, text };
+}
+
+/**
+ * 单次投递尝试（第 [attempt] 次，从 1 起）。
+ *
+ * 成功返回 true；4xx（鉴权/参数类，重试无意义）直接死信；
+ * 5xx/网络错误在后台按指数退避重试（不阻塞 webhook 响应），
+ * 超过 PUSH_MAX_ATTEMPTS 仍失败进死信，等待 /v1/flush 手动补发。
+ */
+async function deliverOnce(alias, payload, locale, attempt) {
+  if (!JPUSH_APP_KEY || !JPUSH_MASTER_SECRET) {
+    log('jpush not configured; event dropped (alias=' + alias + ')');
     return false;
   }
+  const notification = buildNotification(alias, payload, locale);
+  if (!notification) return false;
+
+  let lastError = 'unknown';
+  try {
+    const { status, ok, text } = await jpushPush(notification);
+    if (ok) {
+      log('jpush sent', 'msg_id=' + (JSON.parse(text).msg_id || '-'));
+      return true;
+    }
+    log('jpush failed', status, text.slice(0, 200));
+    if (status >= 400 && status < 500) {
+      deadLetter(alias, payload, locale, attempt, `jpush ${status}`);
+      return false;
+    }
+    lastError = `jpush ${status}`;
+  } catch (error) {
+    log('jpush error', error.message);
+    lastError = error.message;
+  }
+
+  if (attempt < PUSH_MAX_ATTEMPTS) {
+    const delay = Math.min(
+      PUSH_RETRY_BASE_MS * 2 ** (attempt - 1),
+      PUSH_RETRY_MAX_MS,
+    );
+    setTimeout(() => {
+      deliverOnce(alias, payload, locale, attempt + 1);
+    }, delay).unref();
+    log('jpush retry scheduled', `alias=${alias} attempt=${attempt + 1} in=${delay}ms`);
+    return false;
+  }
+  deadLetter(alias, payload, locale, attempt, lastError);
+  return false;
+}
+
+async function pushViaJPush(alias, payload, locale = 'zh') {
+  return deliverOnce(alias, payload, locale, 1);
+}
+
+// ---- 限流合并（A 线语义：超限延后补发，而不是丢弃）----
+
+function enqueuePending(alias, payload, locale) {
+  const queue = pendingPushes.get(alias) || [];
+  queue.push({ payload, locale });
+  // 合并：只保留最新的 MAX_PENDING_PER_ALIAS 条（FIFO 淘汰旧事件）。
+  while (queue.length > MAX_PENDING_PER_ALIAS) queue.shift();
+  pendingPushes.set(alias, queue);
+  setTimeout(() => flushPending(alias), PENDING_FLUSH_DELAY_MS).unref();
+}
+
+function flushPending(alias) {
+  const queue = pendingPushes.get(alias);
+  if (!queue || queue.length === 0) return;
+  pendingPushes.set(alias, []);
+  for (const item of queue) {
+    if (rateLimited(alias)) {
+      enqueuePending(alias, item.payload, item.locale);
+      continue;
+    }
+    deliverOnce(alias, item.payload, item.locale, 1);
+  }
+}
+
+// ---- 死信补发（POST /v1/flush，管理令牌）----
+
+/** 单轮直接补发（不走重试机制，避免重复入死信）。返回成功条数。 */
+async function flushDeadLetters() {
+  let flushed = 0;
+  for (const [id, entry] of [...deadLetters]) {
+    try {
+      const notification = buildNotification(entry.alias, entry.payload, entry.locale);
+      if (!notification) {
+        deadLetters.delete(id); // 别名已删除，条目失效。
+        continue;
+      }
+      const { ok } = await jpushPush(notification);
+      if (ok) {
+        deadLetters.delete(id);
+        flushed++;
+        continue;
+      }
+    } catch (error) {
+      log('flush error', error.message);
+    }
+    entry.attempts++;
+    if (entry.attempts >= PUSH_MAX_ATTEMPTS * 3) {
+      deadLetters.delete(id); // 多轮补发仍失败，放弃避免无限堆积。
+    }
+  }
+  return flushed;
 }
 
 // ---- 路由 ----
@@ -349,14 +482,17 @@ const server = http.createServer(async (req, res) => {
       }
 
       let delivered = false;
+      const locale = (req.headers['x-locale'] || 'zh').toString();
       for (const alias of targets) {
         if (rateLimited(alias)) {
-          log('rate limited (alias=' + alias + ')');
+          // 超限合并延后补发（60s 后按窗口容量再投，不直接丢弃）。
+          log('rate limited, merged for later (alias=' + alias + ')');
+          enqueuePending(alias, payload, locale);
           continue;
         }
-        delivered = (await pushViaJPush(alias, payload)) || delivered;
+        delivered = (await pushViaJPush(alias, payload, locale)) || delivered;
       }
-      // 非 2xx 只记录日志，Traccar 不自动重试（README §2.1）。
+      // 投递失败已进入重试/死信流程，Traccar 不自动重试（README §2.1）。
       return send(res, 200, { ok: delivered });
     }
 
@@ -423,9 +559,17 @@ const server = http.createServer(async (req, res) => {
         return send(res, 403, { error: 'salt not issued by gateway' });
       }
 
+      // H-4：为别名签发独立的指令签名密钥；重复注册保持稳定，
+      // 让客户端重装后仍能取回同一密钥。
+      const existing = aliases.get(alias);
+      const commandSecret =
+        (existing && existing.commandSecret) ||
+        crypto.randomBytes(32).toString('base64url');
+
       aliases.set(alias, {
         userId,
         serverId: Number(match[2]),
+        commandSecret,
         platform: typeof body.platform === 'string' ? body.platform : 'unknown',
         vendor: typeof body.vendor === 'string' ? body.vendor : null,
         appVersion: typeof body.appVersion === 'string' ? body.appVersion : null,
@@ -434,7 +578,8 @@ const server = http.createServer(async (req, res) => {
       });
       evictIfNeeded(aliases, MAX_ALIASES);
       log('alias registered', `u${userId}@…`); // 不打印完整别名（含盐值）
-      return send(res, 200, { ok: true });
+      // commandSecret 经 HTTPS + 会话鉴权下发，客户端存 Secure Storage。
+      return send(res, 200, { ok: true, commandSecret });
     }
 
     // ===== App → 网关：删除别名 =====
@@ -466,6 +611,31 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true, aliases: aliases.size });
     }
 
+    // ===== 运维：死信查看（C-1：必须带管理令牌）=====
+    if (route === 'GET /v1/dead') {
+      if (!ADMIN_TOKEN || !timingSafeEqualStr(bearer(req), ADMIN_TOKEN)) {
+        return send(res, 403, { error: 'admin token required' });
+      }
+      const entries = [...deadLetters.entries()].map(([id, entry]) => ({
+        id,
+        alias: entry.alias.replace(/\.[A-Za-z0-9_-]+$/, '.…'), // 不泄露盐值
+        eventId: String((entry.payload.event && entry.payload.event.id) || ''),
+        attempts: entry.attempts,
+        lastError: entry.lastError,
+        failedAt: new Date(entry.failedAt).toISOString(),
+      }));
+      return send(res, 200, { ok: true, count: entries.length, entries });
+    }
+
+    // ===== 运维：死信补发（C-1：必须带管理令牌）=====
+    if (route === 'POST /v1/flush') {
+      if (!ADMIN_TOKEN || !timingSafeEqualStr(bearer(req), ADMIN_TOKEN)) {
+        return send(res, 403, { error: 'admin token required' });
+      }
+      const flushed = await flushDeadLetters();
+      return send(res, 200, { ok: true, flushed });
+    }
+
     return send(res, 404, { error: 'not found' });
   } catch (error) {
     if (error.code === 'BODY_TOO_LARGE') {
@@ -481,6 +651,7 @@ server.listen(PORT, () => {
   log(`hmac secret      ${WEBHOOK_SECRET ? 'configured' : 'MISSING'}`);
   log(`admin token      ${ADMIN_TOKEN ? 'configured' : 'MISSING'}`);
   log(`jpush            ${JPUSH_APP_KEY ? 'configured' : 'not configured (dry-run)'}`);
-  log(`command signing  ${COMMAND_HMAC_KEY ? 'configured' : 'disabled'}`);
+  log('command signing  per-alias secret (issued at registration)');
+  log(`push resilience  retry=${PUSH_MAX_ATTEMPTS} deadletter=on ratemerge=on`);
   log(`traccar api      ${TRACCAR_API_BASE || 'not configured'}`);
 });

@@ -67,7 +67,7 @@ lib/
 ├── core/
 │   ├── config/
 │   │   ├── brand.dart           # 品牌、包名、备案号/审图号占位
-│   │   └── build_config.dart    # --dart-define（含 COMMAND_HMAC_KEY）
+│   │   └── build_config.dart    # --dart-define（指令签名密钥见 SecureKeys.commandSecret）
 │   ├── network/
 │   │   ├── server_profile.dart      # 档案 + 地址推导 + 二维码解析
 │   │   ├── traccar_api.dart         # REST 客户端（docs/04 全量）

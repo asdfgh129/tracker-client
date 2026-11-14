@@ -120,6 +120,10 @@ X-Traccar-Signature: sha256=<hmac_sha256(raw_body, secret)>
 2. `event.id` 做幂等（Redis `SETNX push:event:<id>`，TTL 24h）；
 3. 只有 `userId` 在该网关注册过别名才推送；
 4. 返回 2xx 后 Traccar 认为成功；非 2xx 只记录日志，不自动重试。
+5. 韧性（自 opencode 线移植）：极光投递失败按指数退避后台重试
+   （≤3 次，不阻塞 webhook 响应），仍失败进**死信**（7 天 TTL），
+   用 `POST /v1/flush`（管理令牌）手动补发；限流超限的投递合并延后
+   补发（60s 窗口），不直接丢弃。webhook 头 `X-Locale` 决定通知文案语言。
 
 ### 2.2 别名注册（安全契约，见安全整改 C-1/C-2/H-2）
 
@@ -164,6 +168,9 @@ Content-Type: application/json
 
 - 网关校验：alias 形如 `u{userId}@{serverId}.{salt}`，且 `userId` 必须
   等于当前已认证用户（403 否则）、盐值必须是本网关签发（403 否则）；
+- 响应为 `{ "ok": true, "commandSecret": "…" }`：`commandSecret` 是网关为该
+  别名签发的**独立指令签名密钥**（H-4），重复注册保持稳定。App 存 Secure
+  Storage（键 `push.commandSecret.<serverId>`），用于校验下行指令 HMAC；
 - 退出登录调用 `DELETE /v1/aliases/{alias}`（同样只能删自己的）；
 - App **不持有** `GATEWAY_ADMIN_TOKEN` —— 那是内部运维令牌。
 
@@ -207,7 +214,7 @@ Authorization: Basic base64(appKey:masterSecret)
 **启动要求**（缺失即拒绝启动，fail-closed）：
 
 ```bash
-TRACCAR_WEBHOOK_SECRET=<与 traccar.xml 一致> GATEWAY_ADMIN_TOKEN=<32+ 随机值，仅内部运维> TRACCAR_API_BASE=https://track.example.com JPUSH_APP_KEY=… JPUSH_MASTER_SECRET=… COMMAND_HMAC_KEY=<32+ 随机值，与 App --dart-define 一致> node gateway.js
+TRACCAR_WEBHOOK_SECRET=<与 traccar.xml 一致> GATEWAY_ADMIN_TOKEN=<32+ 随机值，仅内部运维> TRACCAR_API_BASE=https://track.example.com JPUSH_APP_KEY=… JPUSH_MASTER_SECRET=… node gateway.js
 ```
 
 | 能力 | 实现 |
@@ -215,8 +222,9 @@ TRACCAR_WEBHOOK_SECRET=<与 traccar.xml 一致> GATEWAY_ADMIN_TOKEN=<32+ 随机�
 | 鉴权 | Traccar → 网关 HMAC（常量时间比较）；App → 网关用 Traccar 会话反查 |
 | 归属 | 别名必须 `u{userId}@{serverId}.{salt}` 且 userId=认证用户（C-2/H-2） |
 | 幂等 | 内存 Map（单实例）→ 生产换 Redis `push:event:<eventId>` |
-| 限流 | 单别名 60 条/分钟 |
-| 模板 | 按 `event.type` 渲染中英文案 |
+| 限流 | 单别名 60 条/分钟；超限合并延后补发（不丢弃） |
+| 重试/死信 | 失败指数退避重试 ≤3 次；死信 7 天 TTL + `/v1/flush` 补发 |
+| 模板 | 按 `event.type` 渲染中英文案（`X-Locale` 头选择语言） |
 | 容量 | 别名/幂等/限流表有上限 + TTL 清扫（M-2） |
 | 指令签名 | 下行 `command` 附 HMAC（`userId\|command\|issuedAt`，H-4） |
 | 多服务器 | alias 带 `serverId` |
@@ -248,20 +256,23 @@ curl -i -X POST http://localhost:8080/v1/events \
 
 - 这个补丁让服务端从「官方 Traccar」变成**自维护分支**，升级 Traccar 时需要重新应用；
 - 若不想维护分支，备选方案是网关轮询 `/api/reports/events`，但有延迟与配额成本；
-- 不要把极光 Master Secret / COMMAND_HMAC_KEY 放进 App 或客户端仓库，只放服务端环境变量；
-- **远程指令通道默认关闭**：App 未配置 `COMMAND_HMAC_KEY`（dart-define）时拒绝一切指令（fail-closed，H-4）；网关与 App 的密钥必须一致；
+- 不要把极光 Master Secret 放进 App 或客户端仓库，只放服务端环境变量；
+- **远程指令默认 fail-closed**：签名密钥为**每别名独立**的 `commandSecret`
+  （注册时经 HTTPS 下发，App 存 Secure Storage）。客户端无静态共享密钥，
+  缺失密钥的别名不下发指令（H-4）；网关侧旧注册记录（无密钥）同样拒发；
 - 网关强制 HTTPS 上游（`TRACCAR_API_BASE`），本地联调用 `GATEWAY_ALLOW_INSECURE_DEV=1` 显式豁免。
 
 ## 6. 网关参考实现
 
 `server/gateway/gateway.js`：零依赖 Node.js（>= 18）实现，包含
 HMAC 常量时间校验、`event.id` 幂等（24h）、单用户限流（60 条/分钟，
-超出合并）、按 `event.type` 模板渲染、极光 REST 下发（未配 Key 时 dry-run）。
+超出合并延后补发）、按 `event.type` 中英双语模板渲染、极光 REST 下发
+（未配 Key 时 dry-run；失败指数退避重试 + 死信 + `/v1/flush` 补发）。
 
 ```bash
 # 本地联调启动（弱配置必须显式声明 GATEWAY_ALLOW_INSECURE_DEV=1，
 # 生产环境缺失任何必填项会拒绝启动 —— fail-closed）：
-GATEWAY_PORT=8090 TRACCAR_WEBHOOK_SECRET=dev-secret GATEWAY_ADMIN_TOKEN=dev-admin-token-0000000000000000 TRACCAR_API_BASE=http://localhost:1 COMMAND_HMAC_KEY=dev-command-key GATEWAY_ALLOW_INSECURE_DEV=1 node server/gateway/gateway.js
+GATEWAY_PORT=8090 TRACCAR_WEBHOOK_SECRET=dev-secret GATEWAY_ADMIN_TOKEN=dev-admin-token-0000000000000000 TRACCAR_API_BASE=http://localhost:1 GATEWAY_ALLOW_INSECURE_DEV=1 node server/gateway/gateway.js
 
 # 一键联调（HMAC/幂等/401/别名归属校验全链路）
 bash server/gateway/test-gateway.sh

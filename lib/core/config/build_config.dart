@@ -29,8 +29,12 @@ abstract final class BuildConfig {
   );
 
   /// 高德开放平台 Key，Android 与 iOS 需分别申请（与包名 / Bundle ID 绑定）。
+  ///
+  /// Android 默认值为正式包 `com.trackerone.app` 申请的 Key（docs/15）；
+  /// 其他环境仍可用 `--dart-define=AMAP_ANDROID_KEY=...` 覆盖。
   static const String amapAndroidKey = String.fromEnvironment(
     'AMAP_ANDROID_KEY',
+    defaultValue: '3c5cfa8ef73973fb579289710cc2370f',
   );
   static const String amapIosKey = String.fromEnvironment('AMAP_IOS_KEY');
 
@@ -40,10 +44,15 @@ abstract final class BuildConfig {
   /// - `none`：未接入，仅应用内 WebSocket 事件
   static const String pushProvider = String.fromEnvironment(
     'PUSH_PROVIDER',
-    defaultValue: 'none',
+    defaultValue: 'jpush',
   );
 
-  static const String jpushAppKey = String.fromEnvironment('JPUSH_APP_KEY');
+  /// 极光 AppKey（与包名 `com.trackerone.app` 绑定，docs/15）。
+  /// 可用 `--dart-define=JPUSH_APP_KEY=...` 覆盖。
+  static const String jpushAppKey = String.fromEnvironment(
+    'JPUSH_APP_KEY',
+    defaultValue: '2e6135fffb1db1d409ab1d62',
+  );
   static const String jpushChannel = String.fromEnvironment(
     'JPUSH_CHANNEL',
     defaultValue: 'developer-default',
@@ -54,12 +63,10 @@ abstract final class BuildConfig {
     'PUSH_GATEWAY_URL',
   );
 
-  /// H-4：远程指令签名密钥（与推送网关 `COMMAND_HMAC_KEY` 一致）。
-  ///
-  /// 未配置时**指令通道关闭**：应用会拒绝一切未签名指令
-  /// （fail-closed，避免推送 payload 成为无认证的远程控制面）。
-  static const String commandHmacKey =
-      String.fromEnvironment('COMMAND_HMAC_KEY');
+  // H-4：远程指令签名密钥已改为「每别名独立密钥」——由推送网关在别名
+  // 注册时经 HTTPS 签发并持久化于 Secure Storage（SecureKeys.commandSecret），
+  // 客户端不再内置任何与网关共享的静态密钥。密钥缺失时指令通道关闭
+  // （fail-closed，避免推送 payload 成为无认证的远程控制面）。
 
   /// 崩溃上报：`firebase`（海外/开发）或 `none`（中国大陆默认，接 Bugly 后改）。
   static const String crashReporter = String.fromEnvironment(

@@ -431,7 +431,12 @@ class SessionController extends AsyncNotifier<SessionState> {
   /// 登录后注册推送别名（CN-04；Noop 网关时为空操作）。
   Future<void> _registerPushAlias(Account user) async {
     // 钩子由 push 层提供（push_service.dart），避免循环依赖。
-    await ref.read(pushSessionHookProvider)(user.id, state.value?.profile?.id);
+    // 会话 Token 必须带上：网关靠它反查 userId（H-2）。
+    await ref.read(pushSessionHookProvider)(
+      user.id,
+      state.value?.profile?.id,
+      state.value?.token,
+    );
   }
 }
 

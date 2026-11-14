@@ -10,6 +10,7 @@ import '../core/observability/logger.dart';
 import '../core/push/push_router.dart';
 import '../features/auth/application/session_controller.dart';
 import '../features/commands/application/command_center.dart';
+import '../features/commands/application/command_outbox.dart';
 import '../features/devices/application/devices_controller.dart';
 import '../features/events/presentation/event_banner.dart';
 import '../features/friends/application/friends_controller.dart';
@@ -102,6 +103,8 @@ class _TrackerOneAppState extends ConsumerState<TrackerOneApp>
       pushRouter.setSessionReady(true);
       // 放行冷启动/未登录期间缓存的推送意图（docs/03 §15.4）。
       pushRouter.consumePending();
+      // 会话就绪：补发离线期间积压的指令（指令发件箱）。
+      unawaited(ref.read(commandOutboxProvider).flush());
     } else if (!authenticated && _sessionReadyNotified) {
       _sessionReadyNotified = false;
       pushRouter.setSessionReady(false);
@@ -126,6 +129,8 @@ class _TrackerOneAppState extends ConsumerState<TrackerOneApp>
             _last == AppLifecycleState.hidden) {
           socket.resume();
           messaging.resume();
+          // 回前台是网络恢复的常见时机：补发离线指令。
+          unawaited(ref.read(commandOutboxProvider).flush());
         }
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:

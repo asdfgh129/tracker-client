@@ -381,6 +381,18 @@ class AppDatabase extends _$AppDatabase {
   Future<void> removePendingAction(int id) =>
       (delete(pendingActions)..where((t) => t.id.equals(id))).go();
 
+  /// 指令发件箱积压量（kind=command.send 且未超重试上限；诊断页展示）。
+  /// kind 常量与 CommandOutbox.kind 保持一致（避免 feature→core 循环依赖）。
+  Future<int> commandOutboxCount() async {
+    final countExpr = pendingActions.id.count();
+    final query = selectOnly(pendingActions)
+      ..addColumns([countExpr])
+      ..where(pendingActions.kind.equals('command.send') &
+          pendingActions.retries.isSmallerThanValue(5));
+    final row = await query.getSingle();
+    return row.read(countExpr) ?? 0;
+  }
+
   // ---- 跟踪快照 ----
 
   Future<void> saveTrackingSnapshot(TrackingSnapshotsCompanion entry) =>

@@ -25,6 +25,7 @@ class AmapTrackerMap extends StatefulWidget {
     this.initialZoom = 15,
     this.trafficEnabled = false,
     this.onMarkerTap,
+    this.onZoomChanged,
     this.onMapReady,
     super.key,
   });
@@ -40,6 +41,9 @@ class AmapTrackerMap extends StatefulWidget {
   final double initialZoom;
   final bool trafficEnabled;
   final ValueChanged<MapDeviceMarker>? onMarkerTap;
+
+  /// 相机缩放回调（聚合开关，MAP-04：业务层带迟滞去抖）。
+  final ValueChanged<double>? onZoomChanged;
   final VoidCallback? onMapReady;
 
   @override
@@ -88,6 +92,9 @@ class _AmapTrackerMapState extends State<AmapTrackerMap> {
       onMapCreated: (controller) {
         widget.onMapReady?.call();
       },
+      onCameraMove: widget.onZoomChanged == null
+          ? null
+          : (position) => widget.onZoomChanged!(position.zoom),
       onTap: (latLng) {
         // 用户在地图上点选：把 GCJ-02 还原成 WGS-84 后再交给业务层。
         final wgs = CoordinateTransform.gcj02ToWgs84(
@@ -105,6 +112,13 @@ class _AmapTrackerMapState extends State<AmapTrackerMap> {
       for (final marker in widget.markers)
         Marker(
           position: _toLatLng(marker.point),
+          // 聚合点用橙色+数量标签，与单台设备区分（MAP-04）。
+          icon: marker.isCluster
+              ? BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueOrange,
+                )
+              : BitmapDescriptor.defaultMarker,
+          alpha: marker.isCluster ? 0.9 : 1,
           infoWindow: InfoWindow(title: marker.label),
           onTap: (_) {
             widget.onMarkerTap?.call(marker);

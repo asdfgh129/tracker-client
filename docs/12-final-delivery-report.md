@@ -175,12 +175,12 @@ MASVS-L1 首轮审计：2C + 8H + 11M + 8L。全部处置：
 | 1 | 高德 Android/iOS Key | `--dart-define=AMAP_ANDROID_KEY / AMAP_IOS_KEY`（缺省显示占位卡片，不初始化 SDK） | 高德控制台申请（绑定包名+SHA1）后传入 |
 | 2 | 极光 AppKey | gradle `-PJPUSH_APPKEY` 或 gradle.properties | 极光后台申请；厂商通道需企业资质 |
 | 3 | 推送网关部署 | `server/gateway/gateway.js` 参考实现 | 服务器部署，配置 5 个环境变量（fail-closed） |
-| 4 | 指令签名密钥 | `--dart-define=COMMAND_HMAC_KEY`（未配=指令通道关闭） | ≥32 随机值，与网关一致 |
+| 4 | 指令签名密钥 | 每别名独立 `commandSecret`（网关注册时签发，Secure Storage 存储；未配=指令通道关闭） | 无需人工配置；网关与 App 需同版本上线 |
 | 5 | APP 备案号 | `--dart-define=APP_FILING_NUMBER`（关于页显示"审批中"） | 备案通过后注入 |
 | 6 | 地图审图号 | `--dart-define=MAP_APPROVAL_NUMBER` | 高德 Key 审批后获取 |
 | 7 | 隐私政策 URL | `Brand.privacyUrl`（example.com 占位） | 上线前替换为真实地址 |
 | 8 | 正式签名 | `android/key.properties`（缺失时 release 构建失败） | 生成 keystore 并填入 |
-| 9 | 包名 | `com.example.trackerone`（ADR-015：发布前必须更换） | M0 结束前定稿；连带高德/极光/Firebase 重申请 |
+| 9 | 包名 | `com.trackerone.app`（ADR-015 已定稿） | ✅ 已完成；高德 Android Key 与极光 AppKey 已内置（docs/15） |
 | 10 | 真机矩阵验证 | docs/10 M0 清单 0.2–0.8 | 高德帧率、24h 心跳、国产 ROM 后台存活（代码无法替代） |
 
 ## 10. 已知限制与后续建议

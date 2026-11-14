@@ -78,6 +78,8 @@
 	<string>用于解锁应用，保护您的数据。</string>
 	<key>NSCameraUsageDescription</key>
 	<string>用于扫描二维码导入服务器配置，不会上传或保存照片。</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>用于连接您在局域网内部署的 Traccar 服务器。</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
@@ -94,7 +96,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.example.trackerone</string>
+			<string>com.trackerone.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>trackerone</string>

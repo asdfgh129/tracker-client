@@ -8,6 +8,7 @@ import '../features/auth/application/session_controller.dart';
 import '../features/auth/presentation/app_lock_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/devices/presentation/device_detail_screen.dart';
+import '../features/diagnostics/presentation/battery_guide_screen.dart';
 import '../features/diagnostics/presentation/diagnostics_screen.dart';
 import '../features/friends/presentation/friends_screen.dart';
 import '../features/server/application/server_profile_controller.dart';
@@ -59,8 +60,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ref.read(serverProfileControllerProvider).valueOrNull;
       final path = state.matchedLocation;
 
-      // 1) 隐私门。
-      if (!settings.privacyAgreed) {
+      // 1) 隐私门（同意过且为当前政策版本；政策升级自动失效）。
+      if (!settings.privacyGatePassed) {
         return path == '/privacy' ? null : '/privacy';
       }
 
@@ -222,6 +223,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/diagnostics',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const DiagnosticsScreen(),
+      ),
+      GoRoute(
+        path: '/diagnostics/battery',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const BatteryGuideScreen(),
       ),
     ],
   );

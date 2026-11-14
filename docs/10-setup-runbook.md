@@ -148,14 +148,8 @@ grep -r "applicationId" android/app/build.gradle*
 grep -r "PRODUCT_BUNDLE_IDENTIFIER" ios/Runner.xcodeproj/project.pbxproj | head -2
 ```
 
-期望：`com.example.trackerone`。
-
-> **发布前必须改**：`com.example.*` 无法作为正式上架包名（部分商店直接拒绝，
-> 且发布后不可更改）。改名涉及包名、Bundle ID、高德 Key、极光 AppKey、Firebase
-> 应用注册。建议在 M0 结束前就换成真实反向域名。
-
----
-
+期望：`com.trackerone.app`（ADR-015 已定稿）。
+> **已定稿（0.4.0）**：包名已切换为 `com.trackerone.app`，高德 Android Key 与极光 AppKey 已按该包名内置（docs/15）。
 ## 6. 依赖与代码生成
 
 ```bash
@@ -226,11 +220,11 @@ flutter gen-l10n
 
 ```kotlin
 android {
-    namespace = "com.example.trackerone"
+    namespace = "com.trackerone.app"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.example.trackerone"
+        applicationId = "com.trackerone.app"
         minSdk = 24
         targetSdk = 36
         versionCode = flutter.versionCode
@@ -413,7 +407,6 @@ TRACCAR_WEBHOOK_SECRET=<与 traccar.xml 的 notificator.webhook.secret 一致> \
 GATEWAY_ADMIN_TOKEN=<32+ 随机值> \
 TRACCAR_API_BASE=http://<server>:8082 \
 JPUSH_APP_KEY=<极光AppKey> JPUSH_MASTER_SECRET=<极光MasterSecret> \
-COMMAND_HMAC_KEY=<与 App --dart-define 一致> \
 node server/gateway/gateway.js
 ```
 

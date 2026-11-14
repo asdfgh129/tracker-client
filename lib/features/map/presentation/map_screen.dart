@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../app/widgets/common.dart';
+import '../../../core/map/marker_cluster.dart';
 import '../../../core/map/tracker_map_view.dart';
 import '../../../core/network/socket_client.dart';
 import '../../../l10n/app_localizations.dart';
@@ -23,6 +24,9 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen> with WidgetsBindingObserver {
   Timer? _refreshTicker;
+
+  /// 当前相机缩放（聚合开关，MAP-04）。带 0.25 级迟滞，避免连续重建。
+  double _zoom = 15;
 
   @override
   void initState() {
@@ -46,8 +50,21 @@ class _MapScreenState extends ConsumerState<MapScreen> with WidgetsBindingObserv
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final devices = ref.watch(devicesControllerProvider).valueOrNull;
-    final render = ref.watch(mapRenderProvider);
+    final renderState = ref.watch(mapRenderProvider);
     final query = ref.watch(mapQueryProvider);
+    final settings = ref.watch(settingsProvider);
+
+    // 聚合（MAP-04，缩放感知）：聚合在 UI 层做，因为它依赖相机 zoom。
+    final render = MapRenderState(
+      markers: clusterMarkers(
+        renderState.markers,
+        zoom: _zoom,
+        enabled: settings.mapCluster,
+      ),
+      friendMarkers: renderState.friendMarkers,
+      trails: renderState.trails,
+      initialTarget: renderState.initialTarget,
+    );
 
     final followTarget = render.targetOf(
       query.followDeviceId,
@@ -67,7 +84,19 @@ class _MapScreenState extends ConsumerState<MapScreen> with WidgetsBindingObserv
                 friendMarkers: render.friendMarkers,
                 trails: render.trails,
                 initialTarget: followTarget ?? render.initialTarget,
+                onZoomChanged: (zoom) {
+                  if ((zoom - _zoom).abs() < 0.25) return;
+                  setState(() => _zoom = zoom);
+                },
                 onMarkerTap: (marker) {
+                  // 聚合点：选中簇内第一台设备（展开看详情可再放大地图）。
+                  if (marker.isCluster) {
+                    final target = marker.clusterDeviceIds.isNotEmpty
+                        ? marker.clusterDeviceIds.first
+                        : marker.deviceId;
+                    ref.read(mapQueryProvider.notifier).select(target);
+                    return;
+                  }
                   ref.read(mapQueryProvider.notifier).select(marker.deviceId);
                 },
               ),

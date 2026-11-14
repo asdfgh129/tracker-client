@@ -9,47 +9,6 @@ import '../../devices/application/devices_controller.dart';
 import '../../friends/application/friends_controller.dart';
 import '../../settings/application/settings_controller.dart';
 
-/// 聚合簇（MAP-04：>50 标记时网格聚合）。
-class MapCluster {
-  const MapCluster({required this.center, required this.deviceIds});
-
-  final GeoPoint center;
-  final List<int> deviceIds;
-
-  int get count => deviceIds.length;
-}
-
-abstract final class MapClusterer {
-  /// 网格聚合：把地图按 [gridSizeDegrees] 分格，每格质心为一簇。
-  /// 简单、稳定（不随相机抖动），满足 MAP-04 的性能预算。
-  static List<MapCluster> cluster(
-    List<MapDeviceMarker> markers, {
-    double gridSizeDegrees = 0.25,
-  }) {
-    if (markers.length <= 50) return const [];
-    final grid = <String, List<MapDeviceMarker>>{};
-    for (final marker in markers) {
-      final key =
-          '${(marker.point.latitude / gridSizeDegrees).floor()}:'
-          '${(marker.point.longitude / gridSizeDegrees).floor()}';
-      grid.putIfAbsent(key, () => []).add(marker);
-    }
-    return [
-      for (final cell in grid.values)
-        if (cell.length > 1)
-          MapCluster(
-            center: GeoPoint(
-              cell.map((m) => m.point.latitude).reduce((a, b) => a + b) /
-                  cell.length,
-              cell.map((m) => m.point.longitude).reduce((a, b) => a + b) /
-                  cell.length,
-            ),
-            deviceIds: cell.map((m) => m.deviceId).toList(),
-          ),
-    ];
-  }
-}
-
 /// 交互状态（搜索/筛选/选中/跟随）。
 class MapQueryState {
   const MapQueryState({
@@ -146,20 +105,21 @@ class TrailBuffer {
 
 final trailBufferProvider = Provider<TrailBuffer>((ref) => TrailBuffer());
 
-/// 地图渲染数据（标记/尾迹/聚合/好友标记），由设备数据 + 查询状态派生。
+/// 地图渲染数据（标记/尾迹/好友标记），由设备数据 + 查询状态派生。
+///
+/// 聚合（MAP-04）改在 UI 层做（clusterMarkers，缩放感知）：
+/// 聚合结果依赖相机 zoom，而 zoom 属于屏幕状态，不适合进纯派生 provider。
 class MapRenderState {
   const MapRenderState({
     this.markers = const [],
     this.friendMarkers = const [],
     this.trails = const [],
-    this.clusters = const [],
     this.initialTarget,
   });
 
   final List<MapDeviceMarker> markers;
   final List<FriendMarker> friendMarkers;
   final List<MapTrail> trails;
-  final List<MapCluster> clusters;
   final GeoPoint? initialTarget;
 
   /// 跟随目标的当前位置（相机居中用）。
@@ -239,11 +199,6 @@ final mapRenderProvider = Provider<MapRenderState>((ref) {
     ));
   }
 
-  final clusters =
-      settings.mapCluster && markers.length > 50
-          ? MapClusterer.cluster(markers)
-          : const <MapCluster>[];
-
   // 初始相机：跟随目标 > 本机 > 第一个设备 > 第一个好友。
   GeoPoint? initialTarget;
   final followTarget = query.followDeviceId == null
@@ -265,7 +220,6 @@ final mapRenderProvider = Provider<MapRenderState>((ref) {
     markers: markers,
     friendMarkers: friendMarkers,
     trails: trails,
-    clusters: clusters,
     initialTarget: initialTarget,
   );
 });

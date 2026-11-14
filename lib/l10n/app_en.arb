@@ -34,11 +34,26 @@
   "friendsChannelOffline": "Friends channel offline.",
   "friendsRequestTitle": "Location request",
   "friendsRequestBody": "{name} wants to see your current location.",
-  "@friendsRequestBody": {"placeholders": {"name": {"type": "String"}}},
+  "@friendsRequestBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "friendsRequestShare": "Share location",
   "friendsInviteBannerTitle": "Friend request",
   "friendsInviteBannerBody": "{name} ({id}) wants to add you as a friend.",
-  "@friendsInviteBannerBody": {"placeholders": {"name": {"type": "String"}, "id": {"type": "String"}}},
+  "@friendsInviteBannerBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "id": {
+        "type": "String"
+      }
+    }
+  },
   "commonRetry": "Retry",
   "commonCancel": "Cancel",
   "commonConfirm": "Confirm",
@@ -601,8 +616,8 @@
   "settingsMapStyle": "Map style",
   "settingsMapTrail": "Show trail",
   "settingsMapCluster": "Cluster markers",
-  "settingsNotifications": "Notifications",
-  "settingsNotificationsDesc": "System notification permission",
+  "settingsNotifications": "Notification rules",
+  "settingsNotificationsDesc": "Event alerts and offline push (via JPush when offline)",
   "settingsDnd": "Do not disturb",
   "settingsDndDesc": "Deliver alerts as in-app events during this window.",
   "settingsUnits": "Units",
@@ -622,8 +637,6 @@
   "settingsSdkList": "Third-party SDK list",
   "settingsSdkListBody": "AMap SDK (map, China) · JPush SDK (push, China) · Firebase (push/crash, international builds only). SDKs initialize only after privacy consent.",
   "settingsDiagnostics": "Diagnostics",
-  "settingsNotifications": "Notification rules",
-  "settingsNotificationsDesc": "Event alerts and offline push (via JPush when offline)",
   "notifLoadFailed": "Failed to load notification rules",
   "notifSaveFailed": "Failed to update notification rule",
   "settingsAbout": "About",
@@ -824,5 +837,15 @@
   "serverAllowInsecureWarn": "Plaintext HTTP sends location, credentials and tokens unencrypted. Only enable for a trusted local network.",
   "settingsRevokePrivacy": "Withdraw privacy consent",
   "settingsRevokePrivacyDesc": "Stops all third-party collection and clears local data.",
-  "settingsRevokePrivacyConfirm": "Withdraw consent? Map, push and analytics SDKs will stop, and locally cached data will be deleted. You will be asked to agree again on next launch."
+  "settingsRevokePrivacyConfirm": "Withdraw consent? Map, push and analytics SDKs will stop, and locally cached data will be deleted. You will be asked to agree again on next launch.",
+  "batteryGuideTitle": "Keep background reporting alive",
+  "batteryGuideIntro": "Some Android vendors stop background apps to save power. If reporting stops after a few minutes, allow this app to run in the background.",
+  "batteryGuideStepPermissions": "Allow “Always” location and turn off battery optimization for this app.",
+  "batteryGuideStepBattery": "In system settings, set this app to “Unrestricted” or “Do not optimize”.",
+  "batteryGuideStepAutostart": "Allow auto-start / background activity so the system does not kill reporting after a reboot.",
+  "batteryGuideIos": "On iOS, set Location to “Always” and keep Background App Refresh enabled. The system may still pause updates when the app is not used for a long time.",
+  "batteryGuideOpenBattery": "Open battery settings",
+  "batteryGuideOpenSettings": "Open app settings",
+  "diagnosticsBatteryGuideAction": "Vendor-specific battery guide",
+  "diagCommandOutbox": "Command outbox (offline retry)"
 }

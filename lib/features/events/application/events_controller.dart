@@ -133,7 +133,11 @@ class EventsController extends AsyncNotifier<EventsState> {
     state = AsyncData(current.copyWith(items: items));
   }
 
-  /// 历史事件补拉（deviceId 为 null 时对前 10 个设备逐个拉取）。
+  /// 历史事件补拉（deviceId 为 null 时拉取用户可见的**全部**设备）。
+  ///
+  /// 优先走 `/api/events?from&to` 单请求全量（getAllEvents）；
+  /// 该端点失败时回退到逐设备 `/api/reports/events` 循环（覆盖全部设备，
+  /// 不再只取前 10 个——修复设备多时事件补拉不全）。
   Future<void> backfill({int? deviceId}) async {
     final session = ref.read(sessionControllerProvider).value;
     final serverId = session?.profile?.id;
@@ -147,40 +151,55 @@ class EventsController extends AsyncNotifier<EventsState> {
     );
     try {
       final api = ref.read(sessionControllerProvider.notifier).apiFor(session);
-      final targets = deviceId != null
-          ? [deviceId]
-          : (ref.read(devicesControllerProvider).value?.devices ?? const <Device>[])
-              .take(10)
+      final collected = <DeviceEvent>[];
+
+      if (deviceId != null) {
+        collected.addAll(await api.getEventsHistory(
+          deviceId: deviceId,
+          from: from,
+          to: now,
+        ));
+      } else {
+        try {
+          collected.addAll(await api.getAllEvents(from: from, to: now));
+        } on AppFailure catch (error) {
+          AppLog.w(
+            'events',
+            'getAllEvents failed (${error.code ?? '-'}), fall back to per-device',
+          );
+          // 回退：逐设备补拉，覆盖全部设备。
+          final targets = (ref.read(devicesControllerProvider).value?.devices ??
+                  const <Device>[])
               .map((d) => d.id)
               .toList();
-
-      // 性能 P2-c：设备间并行（限 3 并发避免瞬时打满连接池），
-      // 串行 10 设备在弱网下会让冷启动补拉超过 10s。
-      final collected = <DeviceEvent>[];
-      const concurrency = 3;
-      var cursor = 0;
-      Future<Object?> worker(int _) async {
-        while (cursor < targets.length) {
-          final id = targets[cursor++];
-          try {
-            final events = await api.getEventsHistory(
-              deviceId: id,
-              from: from,
-              to: now,
-            );
-            collected.addAll(events);
-          } on AppFailure catch (error) {
-            AppLog.w('events', 'backfill device $id failed: ${error.code ?? '-'}');
+          // 性能 P2-c：设备间并行（限 3 并发避免瞬时打满连接池）。
+          const concurrency = 3;
+          var cursor = 0;
+          Future<Object?> worker(int _) async {
+            while (cursor < targets.length) {
+              final id = targets[cursor++];
+              try {
+                final events = await api.getEventsHistory(
+                  deviceId: id,
+                  from: from,
+                  to: now,
+                );
+                collected.addAll(events);
+              } on AppFailure catch (error) {
+                AppLog.w(
+                    'events', 'backfill device $id failed: ${error.code ?? '-'}');
+              }
+            }
+            return null;
           }
+          await Future.wait(
+            List.generate(
+              concurrency < targets.length ? concurrency : targets.length,
+              worker,
+            ),
+          );
         }
-        return null;
       }
-      await Future.wait(
-        List.generate(
-          concurrency < targets.length ? concurrency : targets.length,
-          worker,
-        ),
-      );
 
       if (collected.isNotEmpty) {
         await db.upsertEvents(

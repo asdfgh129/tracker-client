@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.4.0（发布工程就绪 + 合并 opencode 线能力）
+
+### 发布工程（阻塞项清零）
+
+- **包名定稿 `com.trackerone.app`**（ADR-015）：applicationId / namespace /
+  iOS Bundle ID / brand.dart / MainActivity 包路径全部切换；相关文档同步
+- **高德 Android Key 与极光 AppKey 内置**（自 opencode 线照搬，均绑定正式包名）：
+  `BuildConfig.amapAndroidKey`、`BuildConfig.jpushAppKey`、Gradle `JPUSH_APPKEY`
+  均有正式默认值，仍可用 `--dart-define` / `-P` 覆盖；`PUSH_PROVIDER` 默认 `jpush`
+- 版本号同步：pubspec 0.2.0+1 → 0.4.0+1（修复与 CHANGELOG 脱节）
+- iOS 合规补件（自 opencode 线移植）：`PrivacyInfo.xcprivacy`、
+  `ExportOptions.plist.example`、`NSLocalNetworkUsageDescription`（局域网 Traccar）
+- Android 合规补件：显式移除 AD_ID/AdServices/InstallReferrer 广告权限；
+  camera/GPS `uses-feature` 非强制（避免商店过滤设备）
+- `android/key.properties.example` 模板；`tool/release_check.sh` 发布自检
+  （ARB/包名/敏感文件/analyze/test/网关语法）
+- CI 增加 iOS 编译验证任务（macOS runner，`--no-codesign`）
+
+### 安全修复
+
+- **远程指令签名改为每别名独立密钥（H-4 升级）**：网关注册时签发
+  `commandSecret`（HTTPS + 会话鉴权下发），App 存 Secure Storage 并用于验签；
+  删除打进客户端的静态共享 `COMMAND_HMAC_KEY`，反编译不再泄露指令签名能力；
+  双侧 fail-closed（无密钥别名网关拒发、客户端拒执行）
+- **修复推送别名注册从未成功**：会话钩子未携带 Traccar Token，网关反查恒 401
+- **隐私政策版本号机制（CN-05）**：同意记录升级为「布尔 + 政策版本号」，
+  条款实质变更递增版本即强制全员重新过隐私门；存量用户自动重确认一次
+- 5056 消息通道超时语义：`_call` 超时不再伪造 `{success:false}` 应答，
+  改抛 `MessagingFailure`（请求已发出、结果未知）；断连失败也统一为该类型；
+  listFriends 增加 12s 超时防悬挂
+
+### 合并 opencode 线能力
+
+- **指令离线发件箱**（A 线持久指令队列语义，复用 PendingActions 表）：
+  可重试类失败（网络/超时/5xx/429）自动入箱，会话就绪/回前台/发送成功时补发；
+  不可重试类（401/403/404/参数）仍即时报错
+- **缩放感知地图聚合（MAP-04）**：`clusterMarkers` 纯函数（zoom≥17 不聚合、
+  本机永不聚合、橙色数量标记），替换原 >50 台才生效且未渲染的死代码；
+  点选聚合选中簇内设备；4 个新单测
+- **Node 网关韧性升级**（自 A 线 Go 网关移植）：极光失败指数退避后台重试
+  ≤3 次 + 死信（7 天 TTL）+ `POST /v1/flush` 管理令牌补发；限流超限合并延后
+  补发（不丢弃）；webhook `X-Locale` 头中英双语模板
+- **事件补拉覆盖全部设备**：优先 `/api/events?from&to` 单请求全量，
+  失败回退逐设备循环（原实现只取前 10 个设备）
+- **厂商保活指南 + 真实厂商识别（自 A 线移植）**：新增电池优化引导页
+  （`/diagnostics/battery`，三步引导 + 厂商专属路径 + 电池豁免申请入口）；
+  修复 `VendorHintsResolver.detectFromPlatform` 拿不到 manufacturer 时永远
+  返回 generic 的缺陷——诊断页/权限向导/设置页三处厂商提示按真实机型生效
+  （`deviceVendorHintsProvider`，device_info_plus 注入）；诊断页电池优化
+  豁免状态从硬编码 false 改为真实读取
+- 诊断页新增指令发件箱积压量（`AppDatabase.commandOutboxCount`）；
+  网关新增死信查看端点 `GET /v1/dead`（管理令牌，别名盐值脱敏）
+- 运营文档移植：docs/13 真机测试矩阵、docs/14 发布检查清单、
+  docs/15 凭据与签名清单（含已内置 Key 与 SHA1）、docs/16 推送运维手册
+  （适配 Node 网关）；`server/README.md` 契约同步
+
+### 已知限制
+
+- 网关免打扰时段（QUIET_HOURS）与 Redis 多实例尚未实现（见 docs/16）
+- 网关与 App 需同版本上线（commandSecret 契约变更）
+- 指令发件箱暂无队列管理 UI（诊断页可见积压量；管理界面留待后续）
+
+
 ## 0.3.0（好友体系 + 通信补环）
 
 ### 好友体系（5056 消息通道）

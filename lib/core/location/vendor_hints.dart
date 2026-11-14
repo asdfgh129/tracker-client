@@ -1,11 +1,19 @@
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../l10n/app_localizations.dart';
 import 'permission_service.dart';
 
 /// 国产 ROM 引导（docs/05 §6.3）：按厂商展示对应图文，不展示通用长文。
 abstract final class VendorHintsResolver {
   static VendorHints? _cached;
+
+  /// 仅供测试：清除厂商识别缓存（进程内一次性识别）。
+  @visibleForTesting
+  static void resetCache() => _cached = null;
 
   /// 从设备制造商推断（device_info_plus 在调用处注入，避免 core 依赖平台）。
   static VendorHints detect({required String manufacturer}) {
@@ -34,6 +42,21 @@ abstract final class VendorHintsResolver {
     return VendorHints.generic;
   }
 
+  /// 真实厂商识别（device_info_plus 读取 manufacturer，自 opencode 线移植）。
+  ///
+  /// 此前 [detectFromPlatform] 拿不到 manufacturer 时**永远**返回 generic，
+  /// 导致诊断页 / 权限向导 / 设置页的厂商提示从未按机型生效（已修复：
+  /// 三处消费点改用 [deviceVendorHintsProvider]）。
+  static Future<VendorHints> detectFromDeviceInfo() async {
+    if (kIsWeb || !Platform.isAndroid) return VendorHints.generic;
+    try {
+      final info = await DeviceInfoPlugin().androidInfo;
+      return detect(manufacturer: info.manufacturer);
+    } on Object {
+      return VendorHints.generic;
+    }
+  }
+
   static String localize(AppLocalizations l10n, VendorHints hints) =>
       switch (hints) {
         VendorHints.xiaomi => l10n.vendorXiaomi,
@@ -45,3 +68,8 @@ abstract final class VendorHintsResolver {
         VendorHints.generic => l10n.vendorGeneric,
       };
 }
+
+/// 真实厂商识别结果（权限向导 / 设置页 / 诊断页共用）。
+final deviceVendorHintsProvider = FutureProvider<VendorHints>(
+  (ref) => VendorHintsResolver.detectFromDeviceInfo(),
+);

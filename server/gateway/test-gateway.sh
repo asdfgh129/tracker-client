@@ -15,7 +15,6 @@ TRACCAR_WEBHOOK_SECRET="$SECRET" \
 GATEWAY_ADMIN_TOKEN="dev-admin-token-0000000000000000" \
 TRACCAR_API_BASE="http://localhost:1" \
 GATEWAY_ALLOW_INSECURE_DEV=1 \
-COMMAND_HMAC_KEY="dev-command-key" \
 node "$(dirname "$0")/gateway.js" &
 GATEWAY_PID=$!
 trap 'kill $GATEWAY_PID 2>/dev/null || true' EXIT
@@ -64,4 +63,16 @@ CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:$PORT/v1
   -H "Authorization: Bearer fake" -H "Content-Type: application/json" -d '{bad')
 [ "$CODE" = "401" ] && echo "401 verified（会话校验先于 body 解析）"
 
-echo "==> 联调通过（安全基线：401/403/幂等/无默认令牌）"
+
+echo "==> 8. 死信补发无管理令牌（期望 403）"
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:$PORT/v1/flush")
+[ "$CODE" = "403" ] && echo "403 verified"
+
+echo "==> 8b. 死信查看无管理令牌（期望 403）"
+CODE=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/v1/dead")
+[ "$CODE" = "403" ] && echo "403 verified"
+
+echo "==> 9. 死信补发带管理令牌（期望 flushed=0：无死信）"
+RESULT=$(curl -s -X POST "http://localhost:$PORT/v1/flush" -H "Authorization: Bearer dev-admin-token-0000000000000000")
+echo "$RESULT" | grep -q '"flushed":0' && echo "flush verified"
+echo "==> 联调通过（安全基线：401/403/幂等/无默认令牌/每别名指令密钥/死信补发）"

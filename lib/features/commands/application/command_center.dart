@@ -4,14 +4,15 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/config/build_config.dart';
 import '../../../core/observability/logger.dart';
 import '../../../core/push/push_gateway.dart';
 import '../../../core/storage/preferences.dart';
+import '../../../core/storage/secure_store.dart';
 import '../../../core/network/traccar_api.dart';
 import '../../../domain/failures.dart';
 import '../../auth/application/session_controller.dart';
 import '../../tracking/application/tracking_controller.dart';
+import 'command_outbox.dart';
 
 /// 远程指令（DEV-04/05/06）。
 ///
@@ -23,6 +24,10 @@ class CommandCenter {
   final Ref _ref;
 
   /// 发送指令（DEV-04）。返回排队/已发送状态；失败抛 [AppFailure]。
+  ///
+  /// 可重试类失败（网络/超时/5xx/429）自动进入离线发件箱
+  /// （[CommandOutbox]，借鉴 A 实现的持久指令队列），待网络或会话
+  /// 恢复后补发；不可重试类（401/403/404/参数错误）直接抛出由用户处理。
   Future<CommandResult> send({
     required int deviceId,
     required String type,
@@ -37,12 +42,33 @@ class CommandCenter {
             attributes: attributes,
           );
       AppLog.i('command', 'sent type=$type queued=${result.queued}');
+      // 顺手清发件箱（有网有会话的时机，代价低）。
+      unawaited(_ref.read(commandOutboxProvider).flush());
       return result;
     } on AppFailure catch (error) {
       AppLog.w('command', 'send failed type=$type: ${error.code ?? '-'}');
+      if (_isRetryable(error)) {
+        final serverId = session.profile?.id;
+        if (serverId != null) {
+          await _ref.read(commandOutboxProvider).enqueue(
+                serverId: serverId,
+                deviceId: deviceId,
+                type: type,
+                attributes: attributes,
+              );
+          return CommandResult(queued: true);
+        }
+      }
       rethrow;
     }
   }
+
+  /// 网络类/服务端瞬时错误可重试；权限与参数错误必须由用户处理。
+  bool _isRetryable(AppFailure error) =>
+      error is NetworkFailure ||
+      error is TimeoutFailure ||
+      error is ServerFailure ||
+      error is RateLimitedFailure;
 
   /// 该设备支持的指令类型（按协议过滤）。
   Future<List<String>> supportedTypes(int deviceId) =>
@@ -75,7 +101,7 @@ class CommandCenter {
     }
 
     // 2) 验签与身份绑定（H-4）。
-    final verification = await _verifyCommand(message, session.user?.id);
+    final verification = await _verifyCommand(message, session);
     if (verification != CommandVerification.ok) {
       AppLog.w(
         'command',
@@ -119,16 +145,21 @@ class CommandCenter {
 
   /// H-4：校验指令消息的签名与用户绑定。
   ///
-  /// 签名内容：`userId|command|issuedAt`（网关侧同构），
-  /// 密钥：`--dart-define=COMMAND_HMAC_KEY`（与网关环境变量一致）。
-  /// 未配置密钥时视为「未启用指令通道」——一律拒绝，
+  /// 签名内容：`userId|command|issuedAt`（网关侧同构）。
+  /// 密钥：网关在别名注册时为该档案签发的**每别名独立密钥**
+  /// （[SecureKeys.commandSecret]，经 HTTPS 下发并存 Secure Storage）——
+  /// 客户端不再内置任何与网关共享的静态密钥。
+  /// 密钥缺失（未注册/网关未升级）时视为「未启用指令通道」——一律拒绝，
   /// 绝不允许无签名指令执行（fail-closed）。
   Future<CommandVerification> _verifyCommand(
     PushMessage message,
-    int? currentUserId,
+    SessionState session,
   ) async {
-    final key = BuildConfig.commandHmacKey;
-    if (key.isEmpty) return CommandVerification.noKeyConfigured;
+    final serverId = session.profile?.id;
+    if (serverId == null) return CommandVerification.noKeyConfigured;
+    final key =
+        await _ref.read(secureStoreProvider).read(SecureKeys.commandSecret(serverId));
+    if (key == null || key.isEmpty) return CommandVerification.noKeyConfigured;
 
     final sig = message.data['sig']?.toString();
     final issuedAtRaw = message.data['issuedAt']?.toString();
@@ -138,6 +169,7 @@ class CommandCenter {
     }
 
     // 2a) 身份绑定：指令必须发给当前登录用户。
+    final currentUserId = session.user?.id;
     final userId = int.tryParse(userIdRaw);
     if (userId == null || currentUserId == null || userId != currentUserId) {
       return CommandVerification.userMismatch;

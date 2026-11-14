@@ -166,18 +166,15 @@ class _PermissionWizardScreenState extends ConsumerState<PermissionWizardScreen>
 }
 
 /// 厂商省电白名单引导（docs/05 §6.3）：按检测到的 ROM 展示对应文案。
-class _VendorCard extends StatelessWidget {
+class _VendorCard extends ConsumerWidget {
   const _VendorCard({required this.l10n});
 
   final AppLocalizations l10n;
 
-  String _hint() => VendorHintsResolver.localize(
-        l10n,
-        VendorHintsResolver.detectFromPlatform(),
-      );
+  String _hint(VendorHints hints) => VendorHintsResolver.localize(l10n, hints);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return Card(
       child: Padding(
@@ -194,7 +191,13 @@ class _VendorCard extends StatelessWidget {
             ),            const SizedBox(height: 8),
             Text(l10n.vendorDesc, style: theme.textTheme.bodySmall),
             const SizedBox(height: 12),
-            Text(_hint(), style: theme.textTheme.bodyMedium),
+            Text(
+              ref.watch(deviceVendorHintsProvider).maybeWhen(
+                    data: (hints) => _hint(hints),
+                    orElse: () => _hint(VendorHints.generic),
+                  ),
+              style: theme.textTheme.bodyMedium,
+            ),
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: () => context.go('/map'),

@@ -20,6 +20,7 @@ lib/l10n/app_localizations*.dart
 android/.gradle/
 android/local.properties
 android/key.properties
+ios/ExportOptions.plist
 android/app/*.jks
 android/app/*.keystore
 ios/Pods/

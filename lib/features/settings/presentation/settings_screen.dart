@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/location/permission_service.dart';
 import '../../../core/location/vendor_hints.dart';
 import '../../../core/observability/logger.dart';
 import '../../../l10n/app_localizations.dart';
@@ -316,17 +317,18 @@ class _SectionHeader extends StatelessWidget {
 }
 
 /// 厂商引导迷你提示。
-class VendorMiniHint extends StatelessWidget {
+class VendorMiniHint extends ConsumerWidget {
   const VendorMiniHint({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     return Text(
-      VendorHintsResolver.localize(
-        l10n,
-        VendorHintsResolver.detectFromPlatform(),
-      ),
+      ref.watch(deviceVendorHintsProvider).maybeWhen(
+            data: (hints) => VendorHintsResolver.localize(l10n, hints),
+            orElse: () =>
+                VendorHintsResolver.localize(l10n, VendorHints.generic),
+          ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );

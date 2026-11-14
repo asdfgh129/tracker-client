@@ -18,7 +18,7 @@
 | ADR-012 | v1 不引入业务 BFF（推送网关例外见 ADR-013） | 已接受 |
 | ADR-013 | 新增轻量推送网关作为唯一推送出口 | 已接受 |
 | ADR-014 | 中国大陆合规：备案 + 隐私同意流 + SDK 清单 | 已接受 |
-| ADR-015 | 包名 `com.example.trackerone` 仅用于开发 | 已接受（发布前必须更换） |
+| ADR-015 | 包名定稿 `com.trackerone.app`（高德/极光 Key 已绑定） | 已接受（2026-11-14 定稿） |
 
 ---
 
@@ -231,7 +231,7 @@ Traccar 的 `firebase` notificator 依赖 Google 服务账号，无法用于国�
 
 **决策**
 
-使用自有包名（占位 `com.example.trackerone`）与品牌，不使用 `org.traccar.*`。
+使用自有包名 `com.trackerone.app` 与品牌，不使用 `org.traccar.*`。
 
 **理由**
 
@@ -373,15 +373,14 @@ Traccar 的 `firebase` notificator 依赖 Google 服务账号，无法用于国�
 
 ---
 
-## ADR-015 · 包名仅用于开发
+## ADR-015 · 包名定稿 com.trackerone.app
 
-**日期**：2026-11-01
-**状态**：已接受
+**日期**：2026-11-01（2026-11-14 定稿）
+**状态**：已落地（高德 Android Key 与极光 AppKey 已按该包名内置，docs/15）
 
 **决策**
 
-开发期使用 `com.example.trackerone`；**发布前必须替换为真实反向域名**
-（例如 `com.yourcompany.trackerone`）。
+包名定稿为 `com.trackerone.app`，不再使用 `com.example.trackerone` 开发占位。
 
 **理由**
 
@@ -427,9 +426,9 @@ Traccar 的 `firebase` notificator 依赖 Google 服务账号，无法用于国�
 | # | 问题 | 影响 | 建议 |
 |---|---|---|---|
 | Q1 | ~~首发市场是否包含中国大陆？~~ | 地图、推送、合规 | **已定：中国大陆首发**（ADR-004/008） |
-| Q2 | 正式包名与品牌归属 | 全部构建/商店/地图 Key/推送 | **M0 结束前定稿**；当前 `com.example.trackerone` 仅开发 |
-| Q3 | 是否允许 App 内创建设备？ | 绑定流程、权限 | v1 允许，失败降级为提示 |
-| Q4 | ~~事件推送走 firebase 还是自建网关？~~ | 运维、成本 | **已定：自建推送网关 + 极光**（ADR-008/013） |
+| Q2 | ~~正式包名与品牌归属~~ | 全部构建/商店/地图 Key/推送 | **已定：`com.trackerone.app`**（高德/极光 Key 已绑定） |
+| Q2 | ~~正式包名与品牌归属~~ | 全部构建/商店/地图 Key/推送 | **已定：`com.trackerone.app`**（高德/极光 Key 已绑定） |
+| Q2 | ~~正式包名与品牌归属~~ | 全部构建/商店/地图 Key/推送 | **已定：`com.trackerone.app`**（高德/极光 Key 已绑定） |
 | Q5 | 是否需要支持 Traccar < 6.0？ | 兼容成本 | 不支持，文档注明 |
 | Q6 | 地图最终供应商 | 成本、配额、体验 | 当前按高德实施；腾讯为备选，切换只改渲染层 |
 | Q7 | 是否需要多账号/多服务器同时在线？ | 架构复杂度 | v1 单活，v1.1 多档案（alias 已带 serverId） |

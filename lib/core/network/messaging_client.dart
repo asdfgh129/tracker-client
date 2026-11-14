@@ -6,6 +6,7 @@ import 'package:web_socket_channel/status.dart' as ws_status;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../observability/logger.dart';
+import '../../domain/failures.dart';
 
 /// 消息通道状态。
 enum MessagingStatus {
@@ -312,11 +313,18 @@ class MessagingClient {
   // ---- 业务 API（认证后可用）----
 
   /// 拉取好友列表快照。
+  ///
+  /// 超时抛 [MessagingFailure]（请求已发出、结果未知），不再悬挂等待。
   Future<List<FriendEntry>> listFriends() async {
     final waiter = Completer<List<FriendEntry>>();
     _friendsWaiter = waiter;
     _channel?.sink.add(jsonEncode({'type': 'friends.list'}));
-    return waiter.future;
+    try {
+      return await waiter.future.timeout(const Duration(seconds: 12));
+    } on TimeoutException {
+      if (_friendsWaiter == waiter) _friendsWaiter = null;
+      throw const MessagingFailure();
+    }
   }
 
   /// 发送好友申请。返回服务器给出的状态（pending / accepted）。
@@ -392,13 +400,19 @@ class MessagingClient {
   Future<Map<String, dynamic>> _call(
     String type,
     Map<String, dynamic> body,
-  ) {
+  ) async {
     final waiter = Completer<Map<String, dynamic>>();
     _ackWaiters.putIfAbsent(type, () => []).add(waiter);
     _channel?.sink.add(jsonEncode({...body, 'type': type}));
-    return waiter.future.timeout(const Duration(seconds: 12), onTimeout: () {
-      return {'success': false, 'reason': 'timeout'};
-    });
+    try {
+      return await waiter.future.timeout(const Duration(seconds: 12));
+    } on TimeoutException {
+      // 从等待队列移除，避免泄漏与迟到应答写入已死的 completer。
+      _ackWaiters[type]?.remove(waiter);
+      // 超时 = 请求已发出、结果未知：抛出统一通道错误，调用方
+      // 不得把伪造应答当服务端决定（修复静默假应答缺陷）。
+      throw const MessagingFailure();
+    }
   }
 
   // ---- 消息解析 ----
@@ -674,12 +688,12 @@ class MessagingClient {
     for (final waiters in _ackWaiters.values) {
       for (final waiter in waiters) {
         if (!waiter.isCompleted) {
-          waiter.completeError(StateError('connection closed'));
+          waiter.completeError(const MessagingFailure());
         }
       }
     }
     _ackWaiters.clear();
-    _friendsWaiter?.completeError(StateError('connection closed'));
+    _friendsWaiter?.completeError(const MessagingFailure());
     _friendsWaiter = null;
   }
 

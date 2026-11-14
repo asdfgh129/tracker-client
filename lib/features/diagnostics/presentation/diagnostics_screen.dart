@@ -13,6 +13,7 @@ import '../../../core/location/vendor_hints.dart';
 import '../../../core/network/socket_client.dart';
 import '../../../core/observability/log_sink.dart';
 import '../../../core/observability/logger.dart';
+import '../../../core/providers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/session_controller.dart';
 import '../../devices/application/devices_controller.dart';
@@ -142,6 +143,14 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                 title: Text(l10n.diagQueue),
                 subtitle: Text('${completed.queueSize}'),
               ),
+              FutureBuilder<int>(
+                future: _commandOutboxCount(),
+                builder: (context, snapshot) => ListTile(
+                  leading: const Icon(Icons.outbox_outlined),
+                  title: Text(l10n.diagCommandOutbox),
+                  subtitle: Text('${snapshot.data ?? 0}'),
+                ),
+              ),
 
               // 网络。
               _SectionHeader(l10n.diagNetwork),
@@ -187,18 +196,30 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
 
               // 设备 / 厂商引导。
               _SectionHeader(l10n.diagDevice),
-              if (Platform.isAndroid)
+              if (Platform.isAndroid) ...[
                 ListTile(
                   leading: Icon(Icons.battery_alert,
                       color: theme.colorScheme.statusWarning),
                   title: Text(l10n.diagVendorHint),
-                  subtitle: Text(
-                    VendorHintsResolver.localize(
-                      l10n,
-                      VendorHintsResolver.detectFromPlatform(),
-                    ),
-                  ),
+                  subtitle: ref.watch(deviceVendorHintsProvider).when(
+                        data: (hints) => Text(
+                          VendorHintsResolver.localize(l10n, hints),
+                        ),
+                        loading: () => null,
+                        error: (_, _) => Text(
+                          VendorHintsResolver.localize(
+                              l10n, VendorHints.generic),
+                        ),
+                      ),
                 ),
+                ListTile(
+                  leading: const Icon(Icons.battery_saver_outlined),
+                  title: Text(l10n.diagnosticsBatteryGuideAction),
+                  subtitle: Text(l10n.batteryGuideIntro),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/diagnostics/battery'),
+                ),
+              ],
               FutureBuilder<String>(
                 future: _deviceSummary(),
                 builder: (context, snapshot) => ListTile(
@@ -224,6 +245,14 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     final background = await service.backgroundLocationStatus();
     final notification = await service.notificationStatus();
     final motion = await service.activityRecognitionStatus();
+    // 电池优化豁免此前硬编码 false（结论引擎的电池规则从未生效）。
+    bool batteryIgnored = false;
+    try {
+      final battery = await Permission.ignoreBatteryOptimizations.status;
+      batteryIgnored = battery.isGranted;
+    } on Object {
+      // 桌面/测试环境无该权限 API，按未豁免处理。
+    }
     return DiagnosisInput(
       foregroundGranted: foreground == PermissionStatus.granted,
       backgroundGranted: background == PermissionStatus.granted ||
@@ -238,8 +267,17 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       socketStatus: base.socketStatus,
       serverReachable: base.serverReachable,
       clockSkewSeconds: base.clockSkewSeconds,
-      batteryOptimizationIgnored: base.batteryOptimizationIgnored,
+      batteryOptimizationIgnored: batteryIgnored,
     );
+  }
+
+  /// 指令发件箱积压量（离线补发队列，SET-04 指标表）。
+  Future<int> _commandOutboxCount() async {
+    try {
+      return await ref.read(appDatabaseProvider).commandOutboxCount();
+    } on Object {
+      return 0;
+    }
   }
 
   Future<String> _deviceSummary() async {

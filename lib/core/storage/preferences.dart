@@ -15,6 +15,10 @@ abstract final class PrefKeys {
   // 合规
   static const privacyAgreed = 'app.privacy.agreed';
   static const privacyAgreedAt = 'app.privacy.agreedAt';
+
+  /// 已同意的隐私政策版本号。条款实质变更时递增
+  /// [SettingsController.privacyPolicyCurrentVersion] 强制重新同意。
+  static const privacyPolicyVersion = 'app.privacy.policyVersion';
   static const backgroundLocationConsent = 'app.privacy.bgLocationConsent';
   static const analyticsEnabled = 'app.privacy.analyticsEnabled';
 

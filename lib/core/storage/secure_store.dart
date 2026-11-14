@@ -16,6 +16,9 @@ abstract final class SecureKeys {
   static String messagingPassword(int serverId) =>
       'messaging.password.$serverId';
 
+  /// 推送网关为该档案别名签发的指令签名密钥（H-4，注册时下发）。
+  static String commandSecret(int serverId) => 'push.commandSecret.$serverId';
+
   static const biometricEnabled = 'auth.biometric.enabled';
 }
 

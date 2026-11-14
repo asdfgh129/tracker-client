@@ -75,6 +75,16 @@ class ConfigFailure extends AppFailure {
   const ConfigFailure(super.message, {super.code});
 }
 
+/// 5056 消息通道错误：应答超时或连接关闭。
+///
+/// 应答超时意味着**请求已发出、结果未知**——调用方不得把它当作
+/// 服务端拒绝或成功处理（此前 `_call` 超时会伪造
+/// `{success: false}` 应答，导致调用方误判）。
+class MessagingFailure extends AppFailure {
+  const MessagingFailure({String? message, super.code})
+      : super(message ?? '消息通道无响应，请检查网络后重试');
+}
+
 /// 未知错误兜底。
 class UnknownFailure extends AppFailure {
   const UnknownFailure(super.message, {super.code});

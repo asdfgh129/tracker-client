@@ -29,6 +29,7 @@ class AppSettings {
     this.mapCluster = true,
     this.analyticsEnabled = false,
     this.privacyAgreed = false,
+    this.privacyPolicyVersion = 0,
     this.notificationsEnabled = false,
   });
 
@@ -43,6 +44,16 @@ class AppSettings {
   final bool mapCluster;
   final bool analyticsEnabled;
   final bool privacyAgreed;
+
+  /// 已同意的隐私政策版本号（0 = 未按版本同意过）。
+  final int privacyPolicyVersion;
+
+  /// 隐私门是否放行：同意过**且**同意的是当前版本的政策。
+  /// 旧版本同意在政策升级后失效，需重新确认（CN-05）。
+  bool get privacyGatePassed =>
+      privacyAgreed &&
+      privacyPolicyVersion >= SettingsController.privacyPolicyCurrentVersion;
+
   final bool notificationsEnabled;
 
   AppSettings copyWith({
@@ -56,6 +67,7 @@ class AppSettings {
     bool? mapCluster,
     bool? analyticsEnabled,
     bool? privacyAgreed,
+    int? privacyPolicyVersion,
     bool? notificationsEnabled,
   }) {
     return AppSettings(
@@ -69,6 +81,7 @@ class AppSettings {
       mapCluster: mapCluster ?? this.mapCluster,
       analyticsEnabled: analyticsEnabled ?? this.analyticsEnabled,
       privacyAgreed: privacyAgreed ?? this.privacyAgreed,
+      privacyPolicyVersion: privacyPolicyVersion ?? this.privacyPolicyVersion,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     );
   }
@@ -76,6 +89,10 @@ class AppSettings {
 
 /// 设置控制器。
 class SettingsController extends Notifier<AppSettings> {
+  /// 当前隐私政策版本。条款发生实质变更时递增，
+  /// 所有旧版本同意自动失效，用户重新过隐私门（CN-05，对齐 ADR-014）。
+  static const int privacyPolicyCurrentVersion = 1;
+
   @override
   AppSettings build() {
     final prefs = ref.watch(prefsProvider);
@@ -91,6 +108,8 @@ class SettingsController extends Notifier<AppSettings> {
       mapCluster: prefs.getBool(PrefKeys.mapClusteringEnabled) ?? true,
       analyticsEnabled: prefs.getBool(PrefKeys.analyticsEnabled) ?? false,
       privacyAgreed: prefs.getBool(PrefKeys.privacyAgreed) ?? false,
+      privacyPolicyVersion:
+          prefs.getInt(PrefKeys.privacyPolicyVersion) ?? 0,
       notificationsEnabled: prefs.getBool(PrefKeys.notificationsEnabled) ?? false,
     );
   }
@@ -198,11 +217,18 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> agreePrivacy() async {
     final prefs = ref.read(prefsProvider);
     await prefs.setBool(PrefKeys.privacyAgreed, true);
+    await prefs.setInt(
+      PrefKeys.privacyPolicyVersion,
+      privacyPolicyCurrentVersion,
+    );
     await prefs.setString(
       PrefKeys.privacyAgreedAt,
       DateTime.now().toUtc().toIso8601String(),
     );
-    state = state.copyWith(privacyAgreed: true);
+    state = state.copyWith(
+      privacyAgreed: true,
+      privacyPolicyVersion: privacyPolicyCurrentVersion,
+    );
 
     // 崩溃上报：crasher 的 SDK 初始化推迟到此处。
     try {
@@ -229,9 +255,14 @@ class SettingsController extends Notifier<AppSettings> {
 
     await prefs.setBool(PrefKeys.privacyAgreed, false);
     await prefs.remove(PrefKeys.privacyAgreedAt);
+    await prefs.remove(PrefKeys.privacyPolicyVersion);
     await prefs.remove(PrefKeys.analyticsEnabled);
     await ref.read(appDatabaseProvider).wipeAllCache();
-    state = state.copyWith(privacyAgreed: false, analyticsEnabled: false);
+    state = state.copyWith(
+      privacyAgreed: false,
+      privacyPolicyVersion: 0,
+      analyticsEnabled: false,
+    );
   }
 
   /// H-5：把「匿名统计」开关与真实采集绑定。
@@ -292,12 +323,13 @@ class SettingsController extends Notifier<AppSettings> {
       await prefs.remove(PrefKeys.backgroundLocationConsent);
       await prefs.setBool(PrefKeys.privacyAgreed, false);
       await prefs.remove(PrefKeys.privacyAgreedAt);
+      await prefs.remove(PrefKeys.privacyPolicyVersion);
       report.consents = true;
     } on Object {
       report.consents = false;
     }
 
-    state = state.copyWith(privacyAgreed: false);
+    state = state.copyWith(privacyAgreed: false, privacyPolicyVersion: 0);
     return report;
   }
 }

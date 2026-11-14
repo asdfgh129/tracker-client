@@ -11,6 +11,8 @@ class MapDeviceMarker {
     this.isSelf = false,
     this.batteryLevel,
     this.speedMetersPerSecond,
+    this.clusterCount = 0,
+    this.clusterDeviceIds = const [],
   });
 
   final int deviceId;
@@ -25,6 +27,13 @@ class MapDeviceMarker {
   final bool isSelf;
   final double? batteryLevel;
   final double? speedMetersPerSecond;
+
+  /// 聚合簇（MAP-04）：> 0 表示这是一个聚合点，[label] 为设备数量，
+  /// [clusterDeviceIds] 为簇内全部设备（点选后可展开/选中）。
+  final int clusterCount;
+  final List<int> clusterDeviceIds;
+
+  bool get isCluster => clusterCount > 0;
 }
 
 /// 轨迹尾迹。点数由调用方按距离 / 时间抽稀后传入。

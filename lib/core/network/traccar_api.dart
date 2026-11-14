@@ -246,6 +246,28 @@ class TraccarApi {
         .toList();
   }
 
+  /// 全量历史事件（不区分设备，一次请求覆盖用户可见的全部设备）。
+  ///
+  /// `/api/events?from&to`（Traccar ≥4.8 支持 from/to）。
+  /// 用于事件补拉兜底：替代逐设备 `/api/reports/events` 循环，
+  /// 避免设备多时补拉不全（此前只取前 10 个设备）。
+  Future<List<DeviceEvent>> getAllEvents({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final response = await dio.get<String>(
+      '/api/events',
+      queryParameters: {
+        'from': _iso(from),
+        'to': _iso(to),
+      },
+    );
+    if (response.statusCode != 200) throw _mapError(response);
+    return _decodeList(response.data)
+        .map((item) => DeviceEvent.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<DeviceEvent?> getEvent(int id) async {
     final response = await dio.get<String>('/api/events/$id');
     if (response.statusCode == 404) return null;

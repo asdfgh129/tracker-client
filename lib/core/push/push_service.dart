@@ -30,11 +30,15 @@ final pushServiceProvider = Provider<PushService>(
 
 /// 登录后的推送注册钩子（session 层调用；网关未配置时自动跳过）。
 ///
+/// [sessionToken] 用于网关反查身份（H-2）——此前遗漏该参数导致
+/// `/v1/alias-salt` 恒 401，别名注册从未成功过（已修复）。
+///
 /// 中国大陆链路：`POST /v1/aliases`（网关）+ `setAlias`（极光 SDK）。
 /// 海外链路：alias 映射为 FCM topic 订阅（见 FcmPushGateway.updateAlias）。
 final pushSessionHookProvider =
-    Provider<Future<void> Function(int userId, int? serverId)>((ref) {
-  return (userId, serverId) async {
+    Provider<Future<void> Function(int userId, int? serverId, String? sessionToken)>(
+        (ref) {
+  return (userId, serverId, sessionToken) async {
     final sid = serverId ?? 0;
     final gatewayUrl = BuildConfig.pushGatewayUrl;
     if (gatewayUrl.isEmpty) {
@@ -47,7 +51,10 @@ final pushSessionHookProvider =
 
     // C-2：别名必须含服务端签发的随机盐。已有则复用，没有则向网关申请。
     String? salt = await secure.read(saltKey);
-    final client = PushGatewayClient(baseUrl: gatewayUrl);
+    final client = PushGatewayClient(
+      baseUrl: gatewayUrl,
+      sessionToken: sessionToken,
+    );
 
     if (salt == null || salt.length < 16) {
       salt = await client.requestAliasSalt(userId: userId, serverId: sid);
@@ -71,12 +78,19 @@ final pushSessionHookProvider =
     final info = await PackageInfo.fromPlatform();
     final platform =
         defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
-    final ok = await client.registerAlias(
+    final commandSecret = await client.registerAlias(
       alias: alias,
       platform: platform,
       appVersion: info.version,
     );
-    AppLog.i('push', 'gateway alias ${ok ? 'registered' : 'register failed'}');
+    AppLog.i(
+      'push',
+      'gateway alias ${commandSecret != null ? 'registered' : 'register failed'}',
+    );
+    if (commandSecret != null) {
+      // H-4：持久化每别名指令签名密钥，供 CommandCenter 验签。
+      await secure.write(SecureKeys.commandSecret(sid), commandSecret);
+    }
 
     // 网关会在服务端把 alias 绑定到已认证用户，客户端不再自行拼接身份。
     await ref.read(pushServiceProvider).initializeAlias(alias);

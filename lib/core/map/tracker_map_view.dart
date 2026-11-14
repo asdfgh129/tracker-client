@@ -20,6 +20,7 @@ class TrackerMapView extends ConsumerWidget {
     this.initialTarget,
     this.initialZoom = 15,
     this.onMarkerTap,
+    this.onZoomChanged,
     super.key,
   });
 
@@ -29,6 +30,9 @@ class TrackerMapView extends ConsumerWidget {
   final GeoPoint? initialTarget;
   final double initialZoom;
   final ValueChanged<MapDeviceMarker>? onMarkerTap;
+
+  /// 相机缩放回调（MAP-04 聚合开关）。
+  final ValueChanged<double>? onZoomChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -44,6 +48,7 @@ class TrackerMapView extends ConsumerWidget {
           initialZoom: initialZoom,
           trafficEnabled: config.trafficEnabled,
           onMarkerTap: onMarkerTap,
+          onZoomChanged: onZoomChanged,
         ),
     };
   }
@@ -58,6 +63,7 @@ class _AmapGate extends ConsumerWidget {
     required this.initialZoom,
     required this.trafficEnabled,
     required this.onMarkerTap,
+    required this.onZoomChanged,
   });
 
   final List<MapDeviceMarker> markers;
@@ -67,6 +73,7 @@ class _AmapGate extends ConsumerWidget {
   final double initialZoom;
   final bool trafficEnabled;
   final ValueChanged<MapDeviceMarker>? onMarkerTap;
+  final ValueChanged<double>? onZoomChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -95,6 +102,7 @@ class _AmapGate extends ConsumerWidget {
           initialZoom: initialZoom,
           trafficEnabled: trafficEnabled,
           onMarkerTap: onMarkerTap,
+          onZoomChanged: onZoomChanged,
         );
       },
     );

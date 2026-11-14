@@ -34,11 +34,26 @@
   "friendsChannelOffline": "好友通道未连接。",
   "friendsRequestTitle": "定位请求",
   "friendsRequestBody": "{name} 想查看你的当前位置。",
-  "@friendsRequestBody": {"placeholders": {"name": {"type": "String"}}},
+  "@friendsRequestBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "friendsRequestShare": "分享位置",
   "friendsInviteBannerTitle": "收到好友申请",
   "friendsInviteBannerBody": "{name}（{id}）请求加你为好友。",
-  "@friendsInviteBannerBody": {"placeholders": {"name": {"type": "String"}, "id": {"type": "String"}}},
+  "@friendsInviteBannerBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "id": {
+        "type": "String"
+      }
+    }
+  },
   "commonRetry": "重试",
   "commonCancel": "取消",
   "commonConfirm": "确认",
@@ -601,8 +616,8 @@
   "settingsMapStyle": "地图样式",
   "settingsMapTrail": "显示轨迹尾迹",
   "settingsMapCluster": "聚合标记",
-  "settingsNotifications": "通知",
-  "settingsNotificationsDesc": "系统通知权限",
+  "settingsNotifications": "通知规则",
+  "settingsNotificationsDesc": "事件提醒与离线推送（离线时经极光送达）",
   "settingsDnd": "免打扰",
   "settingsDndDesc": "该时段内告警仅以应用内事件送达。",
   "settingsUnits": "单位",
@@ -622,8 +637,6 @@
   "settingsSdkList": "第三方 SDK 清单",
   "settingsSdkListBody": "高德地图 SDK（地图，中国大陆）· 极光推送 SDK（推送，中国大陆）· Firebase（推送/崩溃，仅海外包）。所有 SDK 均在隐私同意后初始化。",
   "settingsDiagnostics": "诊断",
-  "settingsNotifications": "通知规则",
-  "settingsNotificationsDesc": "事件提醒与离线推送（离线时经极光送达）",
   "notifLoadFailed": "通知规则加载失败",
   "notifSaveFailed": "通知规则更新失败",
   "settingsAbout": "关于",
@@ -824,5 +837,15 @@
   "serverAllowInsecureWarn": "明文 HTTP 会让位置、账号与 Token 在网络上以未加密形式传输，仅建议在可信内网使用。",
   "settingsRevokePrivacy": "撤回隐私同意",
   "settingsRevokePrivacyDesc": "停止一切第三方采集并删除本地数据。",
-  "settingsRevokePrivacyConfirm": "撤回同意？地图、推送与统计 SDK 将停止工作，本地缓存数据会被删除。下次启动会重新征求同意。"
+  "settingsRevokePrivacyConfirm": "撤回同意？地图、推送与统计 SDK 将停止工作，本地缓存数据会被删除。下次启动会重新征求同意。",
+  "batteryGuideTitle": "让后台上报保持存活",
+  "batteryGuideIntro": "部分安卓厂商会为省电清理后台应用。若上报几分钟后中断，请允许本应用在后台运行。",
+  "batteryGuideStepPermissions": "定位权限选择「始终允许」，并关闭本应用的电池优化。",
+  "batteryGuideStepBattery": "在系统设置中把本应用设为「无限制」或「不优化」。",
+  "batteryGuideStepAutostart": "允许自启动 / 后台活动，避免重启后上报被系统终止。",
+  "batteryGuideIos": "iOS：定位选择「始终」，并保持「后台 App 刷新」开启。长时间不使用时系统仍可能暂停更新。",
+  "batteryGuideOpenBattery": "打开电池设置",
+  "batteryGuideOpenSettings": "打开应用设置",
+  "diagnosticsBatteryGuideAction": "厂商保活设置指南",
+  "diagCommandOutbox": "指令发件箱（离线补发）"
 }

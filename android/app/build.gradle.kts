@@ -16,7 +16,7 @@ if (hasReleaseKeystore) {
 }
 
 android {
-    namespace = "com.example.trackerone"
+    namespace = "com.trackerone.app"
     // 37：permission_handler_android 14.x 的 AAR 元数据要求依赖方 ≥37。
     // AGP 9.1 对 37 会提示“非推荐 SDK”（warning 可忽略）；
     // targetSdk 保持 36（发布目标，docs/00 §7）。
@@ -31,17 +31,18 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.trackerone" // TODO: 发布前替换为真实反向域名（ADR-015）
+        // 正式包名（ADR-015 已定稿，与高德/极光 Key 绑定，docs/15）。
+        applicationId = "com.trackerone.app"
         minSdk = 24 // Android 7.0（docs/00 §7）
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // 极光推送占位（docs/10 §7.1）：真实 AppKey 由
-        //   -PJPUSH_APPKEY=xxx 或 gradle.properties 注入，不提交到仓库。
+        // 极光推送：默认使用正式 AppKey（与包名 com.trackerone.app 绑定），
+        // 可通过 -PJPUSH_APPKEY=xxx 或 gradle.properties 覆盖（docs/10 §7.1）。
         manifestPlaceholders["JPUSH_PKGNAME"] = applicationId ?: ""
         manifestPlaceholders["JPUSH_APPKEY"] =
-            (project.findProperty("JPUSH_APPKEY") ?: "PLACEHOLDER_SET_VIA_GRADLE_PROPERTY").toString()
+            (project.findProperty("JPUSH_APPKEY") ?: "2e6135fffb1db1d409ab1d62").toString()
         manifestPlaceholders["JPUSH_CHANNEL"] =
             (project.findProperty("JPUSH_CHANNEL") ?: "developer-default").toString()
 

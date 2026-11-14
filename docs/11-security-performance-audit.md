@@ -21,7 +21,7 @@
 | H-5 | H | Firebase 打包 + 同意前初始化 + 统计开关无效 | 崩溃上报改为 `preparePending()`（启动不初始化）→ 同意后 `initialize()`；统计开关与真实采集绑定；撤回同意 `disable()`；CI 增加 CN 包解包断言（无 firebase/gms） |
 | H-6 | H | 删除本地数据/登出未清理轨迹残留 | `wipeLocalData()` 覆盖 DB+凭据+日志+导出文件+同意记录；登出走同一清理；新增 `DataEraser` |
 | H-7 | H | release 用 debug 签名 | `key.properties` 签名链；缺失时构建失败（`-PALLOW_DEBUG_SIGNING=true` 仅本地调试） |
-| H-4 | H | 推送 payload 即无认证远程指令 | 指令带 HMAC 签名（`userId|command|issuedAt`，5 分钟防重放窗口）；`COMMAND_HMAC_KEY` 未配置时指令通道关闭（fail-closed）；锁定状态拒执行 |
+| H-4 | H | 推送 payload 即无认证远程指令 | 指令带 HMAC 签名（`userId|command|issuedAt`，5 分钟防重放窗口）；签名密钥升级为**每别名独立** `commandSecret`（注册时 HTTPS 下发，客户端零静态密钥），缺失即拒发/拒执行（fail-closed）；锁定状态拒执行 |
 | M-1 | M | 行踪 DB/日志进云备份 | `allowBackup=false` + `dataExtractionRules` 全排除（cloud + device-transfer） |
 | M-3 | M | LogRedactor 漏网（Basic/Base64/短 token/apikey） | 键白名单扩到 15 键（含中文键）；`Basic/Bearer` 值无条件脱敏；字符集补 `+/=`；JWT 三段式独立规则 |
 | M-4 | M | 裸 `debugPrint` 绕过脱敏且 release 仍输出 | 全部改走 `AppLog`（经脱敏）或包 `kDebugMode` |
@@ -107,7 +107,7 @@ CI 的 `cn-build-hygiene` job 会在 CN 构建后断言；提审前按 docs/09 �
 1. **真机验证**（docs/10 M0 清单 0.2–0.8）：高德渲染帧率、24h 心跳、国产 ROM 后台存活 —— 代码层无法替代。
 2. **CN 包 Firebase 拆分**（docs/09 §3.9）：CI 已加 APK 成分断言；彻底拆分需维护 `pubspec_cn.yaml` 或分支，属发布前工程动作。
 3. **`connectivity_plus` / `battery_plus` / `flutter_map` 等未接线依赖**：按 flavor 清理（海外包接 flutter_map 兜底、诊断页接 battery_plus 白名单检测）。
-4. **推送指令 HMAC**：`COMMAND_HMAC_KEY` 上线时必须 ≥32 字符随机值，且与网关同步轮转。
+4. **推送指令 HMAC**：✅ 已升级为每别名独立 `commandSecret`（网关注册时签发、HTTPS 下发、Secure Storage 存储），消除打进客户端的静态共享密钥；别名缺失密钥时指令通道自动关闭。
 5. **LogRedactor 单测**：已覆盖 JWT/凭据/坐标；Base64 与 `Basic` 场景建议补充用例。
 6. **release 签名**：`android/key.properties` 需要正式 keystore（构建已强制）；
    高德 Key 与极光 AppKey 与签名/包名绑定，改包名（ADR-015）后需重申请。
