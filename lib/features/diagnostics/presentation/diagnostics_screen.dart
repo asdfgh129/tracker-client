@@ -14,6 +14,7 @@ import '../../../core/network/socket_client.dart';
 import '../../../core/observability/log_sink.dart';
 import '../../../core/observability/logger.dart';
 import '../../../core/providers.dart';
+import '../../../core/storage/preferences.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/session_controller.dart';
 import '../../devices/application/devices_controller.dart';
@@ -193,6 +194,22 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                         onPressed: _testServer,
                       ),
               ),
+              // gcj02 部署告警（对齐审计 P2-4）：服务端入站会把
+              // TrackerOne 的 WGS-84 上报误当 GCJ-02 反算，出站再转一次，
+              // 自身轨迹与好友定位整体偏移约 500m。
+              if ((ref
+                      .watch(prefsProvider)
+                      .getString(PrefKeys.serverCoordinateSystem) ??
+                  '')
+                  .toLowerCase() ==
+              'gcj02')
+                ListTile(
+                  leading: Icon(Icons.explore_off,
+                      color: theme.colorScheme.statusWarning),
+                  title: Text(l10n.diagCoordModeTitle),
+                  subtitle: Text(l10n.diagCoordModeWarning),
+                  isThreeLine: true,
+                ),
 
               // 设备 / 厂商引导。
               _SectionHeader(l10n.diagDevice),

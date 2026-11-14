@@ -12,6 +12,14 @@ abstract final class PrefKeys {
   static const units = 'app.units'; // metric / imperial
   static const usageMode = 'app.mode'; // track / view / both
 
+  /// 服务端版本（refreshServerInfo 写入，诊断/关于页展示）。
+  static const serverVersion = 'app.serverVersion';
+
+  /// 服务端坐标系模式（/api/server attributes.coordinateSystem）。
+  ///
+  /// gcj02 时诊断页告警：TrackerOne 全链路 WGS-84，开启该模式会被误转换。
+  static const serverCoordinateSystem = 'app.serverCoordinateSystem';
+
   // 合规
   static const privacyAgreed = 'app.privacy.agreed';
   static const privacyAgreedAt = 'app.privacy.agreedAt';

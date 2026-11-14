@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.4.1（客户端 ↔ 服务端协同对齐审计整改）
+
+> 审计报告与整改记录见 [docs/17-client-server-alignment-audit.md](docs/17-client-server-alignment-audit.md)；
+> 服务端对应版本 6.16.0-CN-1.2。
+
+### 新增
+
+- **TOTP 两步验证登录**：服务端 401 + `WWW-Authenticate: TOTP` 时弹出验证码
+  输入并携带 `code` 重试（`POST /api/session` form 字段）；新增
+  `TotpRequiredFailure` 与中英文案。开启 TOTP 的账号此前在 App 上无法登录
+- **好友邀请唤醒深链（P1-1）**：`PushMessage` 解析网关 extras 的 `type` 字段，
+  `type=friendInvite` 的推送（无 eventId，此前被静默忽略）现落到好友页并
+  触发好友列表刷新，与服务端 CN-1.1 邀请唤醒链路闭环
+- **gcj02 部署告警（P2-4）**：诊断页读取 `/api/server`
+  `attributes.coordinateSystem`（服务端 CN-1.2 暴露），gcj02 模式显示
+  「与 TrackerOne 不兼容、位置偏移约 500m」告警
+
+### 修复
+
+- **服务器版本探测恒为空（复核新发现）**：Traccar 模型 attributes 为嵌套
+  JSON（`attributes.version`），客户端此前读顶层字段恒 null，诊断页版本
+  一直显示 `-`；两处（会话探测 + 连接测试）改为嵌套读取（顶层兜底）
+- 5056 通道 `device_disabled` / `invalid_unique_id` 归入永久失败，
+  不再进入重连循环（P3-5）
+- 网关别名注册补传 `vendor` / `deviceModel`（device_info_plus，best-effort，
+  P3-7）；网关参考实现（`server/gateway/gateway.js`）补存 `deviceModel`，
+  与 README §2.2 契约一致
+
+### 文档
+
+- 收敛 OIDC 宣称：README 能力行标注 OIDC 为服务端能力、客户端未接入
+- `server/README.md` 与 `docs/16` 的 `X-Locale` 契约改为如实描述：
+  网关支持但 tracker-server 不发送，文案实际恒为中文（P2-3）
+- `location.update` 应答分支补注释（本端上报走 5055，保留分支仅为协议完整性）
+
 ## 0.4.0（发布工程就绪 + 合并 opencode 线能力）
 
 ### 发布工程（阻塞项清零）

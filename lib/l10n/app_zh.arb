@@ -847,5 +847,11 @@
   "batteryGuideOpenBattery": "打开电池设置",
   "batteryGuideOpenSettings": "打开应用设置",
   "diagnosticsBatteryGuideAction": "厂商保活设置指南",
-  "diagCommandOutbox": "指令发件箱（离线补发）"
+  "diagCommandOutbox": "指令发件箱（离线补发）",
+  "loginTotpTitle": "两步验证",
+  "loginTotpHint": "请输入 6 位验证码",
+  "loginTotpSubmit": "验证",
+  "loginTotpCancelled": "未输入验证码",
+  "diagCoordModeTitle": "服务端坐标系为 gcj02（不兼容）",
+  "diagCoordModeWarning": "服务端会把入站坐标按 GCJ-02 反算，而 TrackerOne 全链路均为 WGS-84，位置将整体偏移约 500 米。请将服务端 location.coordinateSystem 改回 wgs84。"
 }

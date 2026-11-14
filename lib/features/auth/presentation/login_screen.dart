@@ -140,7 +140,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit({String? totpCode}) async {
     setState(() {
       _busy = true;
       _error = null;
@@ -158,10 +158,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               email: _emailController.text.trim(),
               password: _passwordController.text,
               rememberPassword: _remember,
+              totpCode: totpCode,
             );
       }
       // 登录成功 → 主界面（async gap 后必须查 mounted）。
       if (mounted) context.go('/map');
+    } on TotpRequiredFailure {
+      // 服务端要求两步验证：弹码输入后携带 code 重试（docs/04 §2.1）。
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
+      final code = await _promptTotpCode(l10n);
+      if (!mounted) return;
+      if (code == null || code.isEmpty) {
+        setState(() => _error = l10n.loginTotpCancelled);
+        return;
+      }
+      return _submit(totpCode: code);
     } on AppFailure catch (error) {
       // async gap 后先用 mounted 守卫，再取 context 派生文案。
       if (!mounted) return;
@@ -175,6 +187,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// 两步验证码输入对话框；取消/清空返回 null。
+  Future<String?> _promptTotpCode(AppLocalizations l10n) {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.loginTotpTitle),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          maxLength: 8,
+          decoration: InputDecoration(hintText: l10n.loginTotpHint),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: Text(l10n.loginTotpSubmit),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _goOffline() async {

@@ -55,6 +55,15 @@ class _TrackerOneAppState extends ConsumerState<TrackerOneApp>
     final pushRouter = ref.read(pushRouterProvider);
     pushRouter.onNavigate = (intent) {
       final router = ref.read(appRouterProvider);
+      if (intent.friendInvite) {
+        // 好友邀请唤醒（CN-1.1）：落到好友页；申请已持久化为 pending_in，
+        // 通道未就绪时刷新静默失败，连接成功后会自动拉 friends.list。
+        unawaited(
+          ref.read(friendsControllerProvider.notifier).refreshFromPush(),
+        );
+        router.push('/friends');
+        return;
+      }
       final eventId = intent.eventId;
       if (eventId != null) {
         router.push('/event/$eventId');

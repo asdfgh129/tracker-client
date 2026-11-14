@@ -12,11 +12,13 @@ library;
 /// 服务端（Traccar 自定义 notificator）与推送网关约定以下字段：
 /// - `eventId`：事件 id，点击后跳转 `/event/:id`
 /// - `command`：远程指令类型，如 `positionSingle`
+/// - `type`：事件类型（如 `friendInvite`，无 eventId 的唤醒推送仅凭它路由）
 /// - `title` / `body`：通知文案
 class PushMessage {
   const PushMessage({
     this.eventId,
     this.command,
+    this.type,
     this.title,
     this.body,
     this.data = const {},
@@ -24,16 +26,25 @@ class PushMessage {
 
   final int? eventId;
   final String? command;
+
+  /// 事件类型（网关 extras 的 `type`，如 `friendInvite`；
+  /// friendInvite 无 eventId，仅凭该字段路由）。
+  final String? type;
   final String? title;
   final String? body;
   final Map<String, dynamic> data;
 
   bool get isCommand => command != null && command!.isNotEmpty;
 
+  /// 好友邀请离线唤醒（tracker-server CN-1.1 payload 的
+  /// `event.type=friendInvite`，经网关透传进 extras）。
+  bool get isFriendInvite => type == 'friendInvite';
+
   factory PushMessage.fromData(Map<String, dynamic> data) {
     return PushMessage(
       eventId: _asInt(data['eventId']),
       command: _asString(data['command']),
+      type: _asString(data['type']),
       title: _asString(data['title']),
       body: _asString(data['body']),
       data: data,

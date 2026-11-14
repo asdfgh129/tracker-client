@@ -31,6 +31,15 @@ class UnauthorizedFailure extends AppFailure {
       : super(message, code: code);
 }
 
+/// 401 + `WWW-Authenticate: TOTP`：服务端要求两步验证码。
+///
+/// 与普通 401 区分：调用方应弹出验证码输入并携带 `code` 重试
+/// （POST /api/session 的 form `code` 字段），而不是直接判密码错误。
+class TotpRequiredFailure extends AppFailure {
+  const TotpRequiredFailure({String message = '该账号已开启两步验证，请输入验证码', String? code})
+      : super(message, code: code);
+}
+
 /// 403：无权限。
 class ForbiddenFailure extends AppFailure {
   const ForbiddenFailure({String message = '没有执行此操作的权限', String? code})

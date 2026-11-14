@@ -217,6 +217,11 @@ class FriendsController extends Notifier<FriendsState> {
     }
   }
 
+  /// 好友邀请推送唤醒触发的列表刷新（公开给 app 层）。
+  ///
+  /// 通道未就绪时静默失败无害：连接成功后 `_onConnected` 会再拉一次。
+  Future<void> refreshFromPush() => _refreshFriends();
+
   // ---- 应用层 API ----
 
   /// 加好友（输入对方 8 位 uniqueId）。返回服务器状态（pending/accepted）。

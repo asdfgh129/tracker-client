@@ -31,6 +31,21 @@ void main() {
     await sub.cancel();
   });
 
+  test('device_disabled / invalid_unique_id are permanent failures', () async {
+    // 对齐审计 P3-5：这两个 reason 重连无法解决，原先落入重连分支
+    // 形成 ≤30s 间隔的重连循环，现与 password_mismatch 同样置为 failed。
+    for (final reason in ['device_disabled', 'invalid_unique_id']) {
+      final client = MessagingClient();
+      final statuses = <MessagingStatus>[];
+      final sub = client.statusStream.listen(statuses.add);
+      client.handleMessageForTest({'type': 'error', 'reason': reason});
+      await Future<void>.delayed(Duration.zero);
+      expect(client.status, MessagingStatus.failed, reason: reason);
+      expect(statuses, contains(MessagingStatus.failed), reason: reason);
+      await sub.cancel();
+    }
+  });
+
   test('friends.invite emits with sender identity', () async {
     final client = MessagingClient();
     final invites = <FriendInvite>[];

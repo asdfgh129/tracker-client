@@ -86,7 +86,7 @@ server/gateway/
 | 别名越权防护 | 用 Traccar Token 换 `/api/session`，校验别名 `u{userId}@{serverId}.{salt}` 归属 |
 | 幂等 | `event.id` 幂等键，默认 24 小时 |
 | 限流合并 | 单别名 60 条/分钟，超出部分合并延后补发（60s 窗口），不丢弃 |
-| 文案模板 | 中英双语模板（webhook 头 `X-Locale` 选择），覆盖围栏/告警/超速/SOS 等 |
+| 文案模板 | 中英双语模板（`X-Locale` 头选择，默认中文；tracker-server 的 WebhookSender 当前不发送该头，实际恒为中文），覆盖围栏/告警/超速/SOS 等 |
 | 重试与死信 | 极光失败指数退避后台重试 ≤3 次；仍失败进死信（7 天 TTL），`POST /v1/flush`（管理令牌）手动补发 |
 | 指令签名密钥 | 每别名独立 `commandSecret`（注册时签发，HTTPS 下发；H-4） |
 | 健康检查 | `/healthz` |

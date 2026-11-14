@@ -248,10 +248,14 @@ class SessionController extends AsyncNotifier<SessionState> {
   }
 
   /// 密码登录（AUTH-04/05）。
+  ///
+  /// 服务端开启 TOTP 时首次调用抛 [TotpRequiredFailure]；
+  /// UI 收集验证码后携带 [totpCode] 重试。
   Future<void> loginWithPassword({
     required String email,
     required String password,
     bool rememberPassword = false,
+    String? totpCode,
   }) async {
     final profile = state.value?.profile;
     if (profile == null || profile.id == null) {
@@ -259,7 +263,7 @@ class SessionController extends AsyncNotifier<SessionState> {
     }
     try {
       final api = _createApi(profile, null);
-      final user = await api.login(email, password);
+      final user = await api.login(email, password, code: totpCode);
       final token = await api.exchangeToken();
       final secure = ref.read(secureStoreProvider);
       await secure.write(SecureKeys.token(profile.id!), token);
@@ -337,15 +341,21 @@ class SessionController extends AsyncNotifier<SessionState> {
     }
   }
 
-  /// 探测服务器版本（进主界面后刷新，AUTH-11）。
+  /// 探测服务器版本与坐标系模式（进主界面后刷新，AUTH-11）。
+  ///
+  /// 字段提取见 `ServerInfo`（attributes 为嵌套对象，顶层不存在）。
   Future<void> refreshServerInfo() async {
     final profile = state.value?.profile;
     if (profile == null) return;
     try {
       final server = await apiFor(state.value!).getServer();
-      final version = server['version']?.toString();
+      final version = ServerInfo.versionOf(server);
+      final coordinateSystem = ServerInfo.coordinateSystemOf(server);
       final prefs = ref.read(prefsProvider);
-      if (version != null) await prefs.setString('app.serverVersion', version);
+      if (version != null) await prefs.setString(PrefKeys.serverVersion, version);
+      if (coordinateSystem != null) {
+        await prefs.setString(PrefKeys.serverCoordinateSystem, coordinateSystem);
+      }
       state = AsyncData(state.value!.copyWith(serverVersion: version, offline: false));
     } on AppFailure catch (error) {
       state = AsyncData(state.value!.copyWith(offline: true));

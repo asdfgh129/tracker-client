@@ -847,5 +847,11 @@
   "batteryGuideOpenBattery": "Open battery settings",
   "batteryGuideOpenSettings": "Open app settings",
   "diagnosticsBatteryGuideAction": "Vendor-specific battery guide",
-  "diagCommandOutbox": "Command outbox (offline retry)"
+  "diagCommandOutbox": "Command outbox (offline retry)",
+  "loginTotpTitle": "Two-step verification",
+  "loginTotpHint": "Enter the 6-digit verification code",
+  "loginTotpSubmit": "Verify",
+  "loginTotpCancelled": "Verification code required",
+  "diagCoordModeTitle": "Server coordinate mode: gcj02 (unsupported)",
+  "diagCoordModeWarning": "Server normalizes inbound coordinates as GCJ-02, but TrackerOne reports and receives WGS-84 end to end. Positions will be offset by ~500 m. Switch the server back to location.coordinateSystem=wgs84."
 }

@@ -1,3 +1,4 @@
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -78,10 +79,30 @@ final pushSessionHookProvider =
     final info = await PackageInfo.fromPlatform();
     final platform =
         defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
+    // 契约里的 vendor/deviceModel 供网关侧诊断（按厂商通道排障），
+    // 获取失败不阻塞注册（对齐审计 P3-7：此前两字段恒缺）。
+    String? vendor;
+    String? deviceModel;
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final ios = await deviceInfo.iosInfo;
+        vendor = 'apple';
+        deviceModel = ios.model;
+      } else if (defaultTargetPlatform == TargetPlatform.android) {
+        final android = await deviceInfo.androidInfo;
+        vendor = android.manufacturer;
+        deviceModel = android.model;
+      }
+    } on Object catch (error) {
+      AppLog.w('push', 'device info unavailable: $error');
+    }
     final commandSecret = await client.registerAlias(
       alias: alias,
       platform: platform,
+      vendor: vendor,
       appVersion: info.version,
+      deviceModel: deviceModel,
     );
     AppLog.i(
       'push',

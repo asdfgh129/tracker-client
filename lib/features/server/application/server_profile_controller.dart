@@ -84,10 +84,11 @@ class ServerProfileController extends AsyncNotifier<ServerProfileState> {
     try {
       final server = await api.getServer();
       watch.stop();
+      // 字段提取见 ServerInfo（attributes 为嵌套对象，顶层不存在）。
       return ProbeResult(
         outcome: ProbeOutcome.ok,
         serverName: server['name']?.toString(),
-        version: server['version']?.toString(),
+        version: ServerInfo.versionOf(server),
         latencyMs: watch.elapsedMilliseconds,
       );
     } on DioException catch (error) {

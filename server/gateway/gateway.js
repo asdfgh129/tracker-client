@@ -68,8 +68,8 @@ if (IS_PROD && ADMIN_TOKEN.length < 32) {
 }
 
 // ---- 存储（单实例内存实现；多实例换 Redis）----
-// alias -> { userId, serverId, commandSecret, platform, vendor, appVersion,
-//            registeredAt, lastSeenAt }
+// alias -> { userId, serverId, commandSecret, platform, vendor, deviceModel,
+//            appVersion, registeredAt, lastSeenAt }
 // commandSecret：注册时为每个别名生成的独立指令签名密钥（H-4）。
 const aliases = new Map();
 // eventId -> 时间戳（幂等）
@@ -572,6 +572,7 @@ const server = http.createServer(async (req, res) => {
         commandSecret,
         platform: typeof body.platform === 'string' ? body.platform : 'unknown',
         vendor: typeof body.vendor === 'string' ? body.vendor : null,
+        deviceModel: typeof body.deviceModel === 'string' ? body.deviceModel : null,
         appVersion: typeof body.appVersion === 'string' ? body.appVersion : null,
         registeredAt: Date.now(),
         lastSeenAt: Date.now(),

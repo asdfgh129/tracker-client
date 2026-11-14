@@ -440,8 +440,12 @@ class MessagingClient {
     if (type == 'error') {
       final reason = json['reason']?.toString() ?? '';
       AppLog.w('messaging', 'server error: $reason');
-      if (reason == 'password_mismatch' || reason == 'unknown_device') {
-        // 自动重连无法解决，交上层处理。
+      // 永久性失败（重连无法解决）→ 交上层处理，避免无意义重连循环
+      // （对齐审计 P3-5：device_disabled/invalid_unique_id 原先会落入重连分支）。
+      if (reason == 'password_mismatch' ||
+          reason == 'unknown_device' ||
+          reason == 'device_disabled' ||
+          reason == 'invalid_unique_id') {
         _setStatus(MessagingStatus.failed);
         _closeChannel();
         return;
@@ -507,6 +511,9 @@ class MessagingClient {
         case 'friends.reject':
         case 'friends.remove':
         case 'register':
+        // location.update：服务端支持的等价上报路径（5055 的替代）。
+        // 本客户端上报走 5055 SDK，从不发送该消息；保留应答分支仅为
+        // 协议完整性（对齐审计 P3-6）。
         case 'location.update':
           _completeAck(type, json);
           return;

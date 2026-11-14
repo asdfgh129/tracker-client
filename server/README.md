@@ -123,7 +123,9 @@ X-Traccar-Signature: sha256=<hmac_sha256(raw_body, secret)>
 5. 韧性（自 opencode 线移植）：极光投递失败按指数退避后台重试
    （≤3 次，不阻塞 webhook 响应），仍失败进**死信**（7 天 TTL），
    用 `POST /v1/flush`（管理令牌）手动补发；限流超限的投递合并延后
-   补发（60s 窗口），不直接丢弃。webhook 头 `X-Locale` 决定通知文案语言。
+   补发（60s 窗口），不直接丢弃。文案语言：网关支持按 `X-Locale` 头
+   选择中英文模板，但 tracker-server 的 `WebhookSender` 当前**不发送**
+   该头（文案由服务端模板决定），实际恒为默认中文（对齐审计 P2-3）。
 
 ### 2.2 别名注册（安全契约，见安全整改 C-1/C-2/H-2）
 
@@ -224,7 +226,7 @@ TRACCAR_WEBHOOK_SECRET=<与 traccar.xml 一致> GATEWAY_ADMIN_TOKEN=<32+ 随机�
 | 幂等 | 内存 Map（单实例）→ 生产换 Redis `push:event:<eventId>` |
 | 限流 | 单别名 60 条/分钟；超限合并延后补发（不丢弃） |
 | 重试/死信 | 失败指数退避重试 ≤3 次；死信 7 天 TTL + `/v1/flush` 补发 |
-| 模板 | 按 `event.type` 渲染中英文案（`X-Locale` 头选择语言） |
+| 模板 | 按 `event.type` 渲染中英文案（`X-Locale` 头选择，默认中文；tracker-server 当前不发送该头） |
 | 容量 | 别名/幂等/限流表有上限 + TTL 清扫（M-2） |
 | 指令签名 | 下行 `command` 附 HMAC（`userId\|command\|issuedAt`，H-4） |
 | 多服务器 | alias 带 `serverId` |

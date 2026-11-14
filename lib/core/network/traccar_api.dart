@@ -85,22 +85,35 @@ class TraccarApi {
   // ---- 会话 ----
 
   /// 密码登录：成功返回 User（docs/04 §2.1）。
-  Future<Account> login(String email, String password) async {
+  ///
+  /// 服务端账号开启 TOTP 时首次请求返回 401 + `WWW-Authenticate: TOTP`，
+  /// 抛 [TotpRequiredFailure]；调用方收集验证码后携带 [code] 重试
+  /// （服务端 form `code` 字段，SessionResource）。
+  Future<Account> login(String email, String password, {String? code}) async {
     // 重置 Cookie，避免上一个账号的会话干扰。
     _cookieJar = CookieJar();
     dio = _buildDio();
     final response = await dio.post<String>(
       _sessionPath,
       data: 'email=${Uri.encodeQueryComponent(email)}'
-          '&password=${Uri.encodeQueryComponent(password)}',
+          '&password=${Uri.encodeQueryComponent(password)}'
+          '${(code != null && code.isNotEmpty) ? '&code=${Uri.encodeQueryComponent(code)}' : ''}',
       options: Options(
         contentType: 'application/x-www-form-urlencoded',
         headers: {'Accept': 'application/json'},
       ),
     );
+    if (response.statusCode == 401 && _isTotpChallenge(response)) {
+      throw const TotpRequiredFailure(code: 'totp_required');
+    }
     if (response.statusCode != 200) throw _mapError(response);
     return Account.fromJson(_decodeMap(response.data));
   }
+
+  /// 服务端 TOTP 二次验证质询（`WWW-Authenticate: TOTP`）。
+  static bool _isTotpChallenge(Response<String> response) =>
+      response.headers.value('www-authenticate')?.toUpperCase().contains('TOTP') ??
+      false;
 
   /// 用会话 Cookie 换长期 Token（纯文本）。
   Future<String> exchangeToken() async {
@@ -415,4 +428,24 @@ class CommandResult {
   /// true = 已排队（设备离线），false = 已即时发送。
   final bool queued;
   final Map<String, dynamic> raw;
+}
+
+/// `GET /api/server` 响应字段提取。
+///
+/// Traccar 模型的 attributes 经 Jackson 序列化为**嵌套**对象
+/// （`attributes.version`），顶层不存在该字段——此前直接读顶层
+/// 恒为 null（诊断页版本一直显示 `-`）。保留顶层兜底以兼容拍平实现。
+class ServerInfo {
+  static String? versionOf(Map<String, dynamic> server) =>
+      _attr(server, 'version');
+
+  /// 坐标系模式（tracker-server CN-1.2 起暴露；gcj02 时诊断页告警）。
+  static String? coordinateSystemOf(Map<String, dynamic> server) =>
+      _attr(server, 'coordinateSystem');
+
+  static String? _attr(Map<String, dynamic> server, String key) {
+    final attributes = server['attributes'];
+    final nested = attributes is Map<String, dynamic> ? attributes[key] : null;
+    return (nested ?? server[key])?.toString();
+  }
 }

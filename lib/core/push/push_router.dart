@@ -9,13 +9,23 @@ import 'push_service.dart';
 
 /// 待消费的推送意图（冷启动 / 未登录时缓存，登录后消费，docs/03 §15.4）。
 class PendingPushIntent {
-  const PendingPushIntent({this.eventId, this.deviceId, this.command});
+  const PendingPushIntent({
+    this.eventId,
+    this.deviceId,
+    this.command,
+    this.friendInvite = false,
+  });
 
   final int? eventId;
   final int? deviceId;
   final String? command;
 
-  bool get isEmpty => eventId == null && deviceId == null && command == null;
+  /// 好友邀请唤醒：无 eventId/deviceId 语义（deviceId 是本机设备），
+  /// 落点由 app 层决定（好友页 + 刷新列表）。
+  final bool friendInvite;
+
+  bool get isEmpty =>
+      eventId == null && deviceId == null && command == null && !friendInvite;
 }
 
 /// 推送路由（EVT-04、DEV-06）：
@@ -59,6 +69,19 @@ class PushRouter {
   void _handle(PushMessage message) {
     if (message.isCommand) {
       unawaited(_handleCommand(message));
+      return;
+    }
+    if (message.isFriendInvite) {
+      // 好友邀请离线唤醒（CN-1.1）：服务端 payload 只有 event.type、
+      // 没有 event.id，此前因缺 eventId 被静默忽略。申请本身已持久化
+      // 为 pending_in，这里负责把用户带到好友页闭环。
+      final intent = const PendingPushIntent(friendInvite: true);
+      if (_sessionReady) {
+        onNavigate?.call(intent);
+      } else {
+        _pending = intent;
+        AppLog.i('push', 'friend invite intent cached');
+      }
       return;
     }
     final eventId = message.eventId;
