@@ -47,7 +47,7 @@
 - **事件与推送**：围栏/告警推送、点击直达、应用内事件流、免打扰。
 - **远程指令**：单次定位、开始/停止上报、恢复出厂设置（经推送网关下发到离线手机）。
 - **多服务器**：自建/托管服务器档案、二维码导入、Token 登录、TOTP 两步验证、生物识别锁。
-  （OIDC 登录为服务端能力，客户端尚未接入——见 docs/13 对齐审计 P1-2。）
+  （OIDC 登录为服务端能力，客户端尚未接入——见 docs/17 对齐审计 P1-2。）
 - **可运维**：诊断页（权限、队列、最后上报、日志导出）、崩溃上报、通知规则自助管理。
 
 ## 技术栈
@@ -153,6 +153,7 @@ flutter run \
 | [11-security-performance-audit.md](docs/11-security-performance-audit.md) | 安全（MASVS-L1）与性能审计、整改记录、工具链问题 |
 | [12-final-delivery-report.md](docs/12-final-delivery-report.md) | 最终交付报告：功能明细、验证结果、外部依赖清单 |
 | [17-client-server-alignment-audit.md](docs/17-client-server-alignment-audit.md) | 客户端↔服务端协议对齐审计：六链路矩阵、差异清单、整改记录 |
+| [18-feature-inventory.md](docs/18-feature-inventory.md) | 两端实现功能详细清单：客户端 12 业务域 + 服务端模块 + 依赖映射 |
 | [server/README.md](server/README.md) | Traccar webhook 补丁、推送网关契约（含安全基线）、联调 |
 
 ## 许可证与商标

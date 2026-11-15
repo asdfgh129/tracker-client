@@ -30,6 +30,8 @@
 
 ### 文档
 
+- 新增 **docs/18 两端实现功能详细清单**：客户端 12 业务域逐域盘点 +
+  服务端（tracker-server CN-1.2）模块清单 + 客户端功能↔服务端能力映射表
 - 收敛 OIDC 宣称：README 能力行标注 OIDC 为服务端能力、客户端未接入
 - `server/README.md` 与 `docs/16` 的 `X-Locale` 契约改为如实描述：
   网关支持但 tracker-server 不发送，文案实际恒为中文（P2-3）
