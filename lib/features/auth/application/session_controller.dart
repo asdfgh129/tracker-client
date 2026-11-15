@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart' as local_auth;
 
@@ -23,6 +25,31 @@ enum SessionPhase {
 
   /// 已认证。
   authenticated,
+}
+
+/// OIDC 回跳目标（与服务端白名单 `OpenIdAppRedirect.APP_REDIRECT_URI` 一致，
+/// Android/iOS 已注册 trackerone scheme）。
+const String openIdAppRedirectUri = 'trackerone://openid/callback';
+
+/// 构建 OIDC 企业登录授权入口 URL（系统浏览器打开，docs/04 §2.3）。
+///
+/// redirect 经服务端签名 state 经 IdP 往返带回（防篡改），回调由
+/// [handleOpenIdCallback] 处理。
+Uri buildOpenIdAuthUrl(String apiBaseUrl) {
+  return Uri.parse('$apiBaseUrl/api/session/openid/auth').replace(
+    queryParameters: {'redirect': openIdAppRedirectUri},
+  );
+}
+
+/// 从 OIDC 回跳深链提取一次性 code；形状不符返回 null。
+String? openIdCodeFromUri(Uri uri) {
+  if (uri.scheme != 'trackerone' || uri.host != 'openid') return null;
+  if (uri.pathSegments.isEmpty || uri.pathSegments.first != 'callback') {
+    return null;
+  }
+  final code = uri.queryParameters['code'];
+  if (code == null || code.isEmpty) return null;
+  return code;
 }
 
 /// 会话状态（docs/03 §15.1）。
@@ -111,6 +138,9 @@ class SessionState {
 class SessionController extends AsyncNotifier<SessionState> {
   TraccarApi? _api;
 
+  /// OIDC 回跳在会话恢复（build）完成前到达时的暂存（冷启动深链）。
+  _PendingOpenId? _pendingOpenId;
+
   @override
   Future<SessionState> build() async {
     final serverState = ref.watch(serverProfileControllerProvider).value;
@@ -120,13 +150,13 @@ class SessionController extends AsyncNotifier<SessionState> {
     // 恢复：有档案 + 有 Token → 校验；失败降级只读（offline）。
     final serverId = profile?.id;
     if (profile == null || serverId == null) {
-      return SessionState(phase: SessionPhase.anonymous, profile: profile);
+      return _finalize(SessionState(phase: SessionPhase.anonymous, profile: profile));
     }
 
     final secure = ref.read(secureStoreProvider);
     final token = await secure.read(SecureKeys.token(serverId));
     if (token == null || token.isEmpty) {
-      return SessionState(phase: SessionPhase.anonymous, profile: profile);
+      return _finalize(SessionState(phase: SessionPhase.anonymous, profile: profile));
     }
 
     // 生物识别锁在 UI 层拦截进入主界面；会话本身仍是已认证。
@@ -138,7 +168,7 @@ class SessionController extends AsyncNotifier<SessionState> {
       // 离线降级：缓存中已认证过（有 Token 即视为会话存在）。
       final offlineApi = _createApi(profile, token);
       _api = offlineApi;
-      return SessionState(
+      return _finalize(SessionState(
         phase: SessionPhase.authenticated,
         token: token,
         profile: profile,
@@ -146,11 +176,11 @@ class SessionController extends AsyncNotifier<SessionState> {
         unlocked: unlocked,
         biometricEnabled: biometricEnabled,
         apiClient: offlineApi,
-      );
+      ));
     }
     final restoredApi = _createApi(profile, token);
     _api = restoredApi;
-    return SessionState(
+    return _finalize(SessionState(
       phase: SessionPhase.authenticated,
       token: token,
       user: user,
@@ -160,7 +190,17 @@ class SessionController extends AsyncNotifier<SessionState> {
       biometricEnabled: biometricEnabled,
       serverVersion: _cachedVersion(prefs),
       apiClient: restoredApi,
-    );
+    ));
+  }
+
+  /// 消费会话恢复完成前暂存的 OIDC 回调（冷启动深链，docs/04 §2.3）。
+  SessionState _finalize(SessionState result) {
+    final pending = _pendingOpenId;
+    if (pending != null) {
+      _pendingOpenId = null;
+      unawaited(_completeOpenIdLogin(pending.code, result, pending.completer));
+    }
+    return result;
   }
 
   /// 生物识别解锁成功后调用。
@@ -341,6 +381,62 @@ class SessionController extends AsyncNotifier<SessionState> {
     }
   }
 
+  /// 处理 OIDC 回跳深链（`trackerone://openid/callback?code=...`，0.5.0）。
+  ///
+  /// 返回登录是否成功；app 层据此导航。会话恢复中到达的回调（冷启动深链）
+  /// 暂存至 [_pendingOpenId]，build 完成后由 [_finalize] 自动消费——
+  /// 返回的 Future 在两种场景下都会完成。
+  Future<bool> handleOpenIdCallback(Uri uri) {
+    final code = openIdCodeFromUri(uri);
+    if (code == null) {
+      AppLog.w('auth', 'ignored malformed openid callback');
+      return Future<bool>.value(false);
+    }
+    if (state.isLoading) {
+      AppLog.i('auth', 'openid callback while restoring: queued');
+      final completer = Completer<bool>();
+      _pendingOpenId = _PendingOpenId(code, completer);
+      return completer.future;
+    }
+    return _completeOpenIdLogin(code, state.value!, null);
+  }
+
+  /// OIDC 登录完成段：一次性 code 换长期 Token → 校验 → 落库 → 建会话 →
+  /// 注册推送别名。失败不抛出（深链场景无处展示异常），返回 false。
+  Future<bool> _completeOpenIdLogin(
+    String code,
+    SessionState base,
+    Completer<bool>? completer,
+  ) async {
+    try {
+      final profile = base.profile;
+      final serverId = profile?.id;
+      if (profile == null || serverId == null) {
+        throw const ConfigFailure('请先配置服务器');
+      }
+      final api = _createApi(profile, null);
+      final token = await api.exchangeOpenIdCode(code);
+      final user = await api.validateToken(token);
+      await ref.read(secureStoreProvider).write(SecureKeys.token(serverId), token);
+      _api = api;
+      state = AsyncData(base.copyWith(
+        phase: SessionPhase.authenticated,
+        token: token,
+        user: user,
+        offline: false,
+        apiClient: api,
+      ));
+      await _registerPushAlias(user);
+      AppLog.i('auth', 'openid login ok (server=$serverId)');
+      completer?.complete(true);
+      return true;
+    } on AppFailure catch (error) {
+      AppLog.w('auth', 'openid login failed: ${error.code ?? '-'}');
+      completer?.complete(false);
+      return false;
+    }
+  }
+
   /// 探测服务器版本与坐标系模式（进主界面后刷新，AUTH-11）。
   ///
   /// 字段提取见 `ServerInfo`（attributes 为嵌套对象，顶层不存在）。
@@ -456,6 +552,14 @@ final sessionControllerProvider =
     AsyncNotifierProvider<SessionController, SessionState>(
   SessionController.new,
 );
+
+/// OIDC 回跳的暂存项（冷启动深链先于会话恢复完成时）。
+class _PendingOpenId {
+  const _PendingOpenId(this.code, this.completer);
+
+  final String code;
+  final Completer<bool> completer;
+}
 
 /// SocketClient 单例（全局单连接，docs/03 §6.2）。
 final socketClientProvider = Provider<SocketClient>((ref) {

@@ -47,3 +47,6 @@ environment/
 
 # OS
 .DS_Store
+
+# ZCode 本地会话数据
+.zcode/

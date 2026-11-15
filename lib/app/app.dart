@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -93,12 +94,31 @@ class _TrackerOneAppState extends ConsumerState<TrackerOneApp>
   void _wireDeepLinks() {
     final links = AppLinks();
     final router = ref.read(appRouterProvider);
-    _deepLinks = listenAppLinks(links.uriLinkStream, router);
+    _deepLinks = links.uriLinkStream.listen(
+      (uri) => _onLinkUri(uri, router),
+      onError: (Object error) => AppLog.w('deeplink', 'link stream error: $error'),
+    );
     links.getInitialLink().then((uri) {
-      if (uri != null) DeepLinkHandler(router).handle(uri);
+      if (uri != null) _onLinkUri(uri, router);
     }).catchError((Object error) {
       AppLog.w('deeplink', 'initial link failed: $error');
     });
+  }
+
+  /// 深链分发：OIDC 回跳交会话层换 token（0.5.0），其余走页面路由。
+  Future<void> _onLinkUri(Uri uri, GoRouter router) async {
+    if (uri.scheme == 'trackerone' && uri.host == 'openid') {
+      try {
+        final ok = await ref
+            .read(sessionControllerProvider.notifier)
+            .handleOpenIdCallback(uri);
+        if (ok) router.go('/map');
+      } on Object catch (error) {
+        AppLog.w('deeplink', 'openid callback failed: $error');
+      }
+      return;
+    }
+    DeepLinkHandler(router).handle(uri);
   }
 
   void _onSessionChanged(

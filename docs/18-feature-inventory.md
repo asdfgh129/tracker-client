@@ -13,6 +13,9 @@
 - 密码登录（`POST /api/session` form：email/password，Set-Cookie 换长期 Token）
 - **TOTP 两步验证**：服务端 401+`WWW-Authenticate: TOTP` 时弹码重试（`code` form 字段，0.4.1）
 - Token 直接登录（企业分发 / 扫码；`GET /api/session` 验证）
+- **OIDC 企业登录（SSO，0.5.0）**：系统浏览器走 IdP 授权 → 签名 state 携带回跳目标 →
+  一次性 code 深链回跳（`trackerone://openid/callback`）→ `POST /api/session/openid/mobile`
+  换长期 Token；服务端 `openIdEnabled` 时登录页显隐、`openIdForce` 时提示
 - 会话恢复：启动读 Secure Storage → 验证 → 网络失败降级离线只读
 - 生物识别锁（local_auth；锁屏期间 API 层拒绝服务，路由守卫 `/lock`）
 - 登出：`POST /api/session/token/revoke` → 清 Token/密码 → 撤销推送别名 → 清缓存/日志/导出文件
@@ -94,7 +97,7 @@
 
 - Android 24+（后台定位、开机恢复、`allowNativeHeapPointerTagging=false`、移除广告权限）/ iOS 15+（Background Modes、PrivacyInfo.xcprivacy）
 - CI：analyze / test / 平台自检 / CN 成分断言 / iOS 编译（`--no-codesign`）
-- 测试：96 用例（协议解析、路由、坐标转换、聚合、脱敏、SDK mock 等）；`flutter analyze` 0 issues
+- 测试：104 用例（协议解析、路由、坐标转换、聚合、脱敏、SDK mock 等）；`flutter analyze` 0 issues
 - 推送网关参考实现（`server/gateway/gateway.js`，零依赖 Node）：HMAC 鉴权、幂等、限流合并、重试/死信、双语模板、每别名指令签名
 
 ## 2. 服务端功能清单（tracker-server 6.16.0-CN-1.2）
@@ -150,7 +153,7 @@
 - 可观测：统计（statistics）、审计日志（audit）、健康检查（/api/health）、事件转发（JSON EventForwarder）
 - 认证补充：OIDC Provider（authorize/token/userinfo/jwks）、TOTP、服务账号 Token
 - 配置族：`messaging.*`（port/authTimeout/requestTimeout/maxFriends/locationBroadcast/ssl）、`notificator.webhook.*`（url/secret/timeoutSeconds/allowHttp/commands）、`location.coordinateSystem`、`database.registerUnknown`、`openid.*`
-- 测试：87 用例（API 集成 11 项、messaging 集成、好友状态机、坐标转换、协议解码…）+ checkstyle
+- 测试：93 用例（API 集成 13 项、messaging 集成、好友状态机、坐标转换、协议解码、OIDC 签名 state…）+ checkstyle
 
 ## 3. 客户端功能 ↔ 服务端能力映射
 
@@ -172,6 +175,7 @@
 
 ## 4. 明确不做 / 待外部依赖
 
-- 客户端未接入：OIDC 登录（服务端具备，见 docs/17 P1-2）、TOTP 开通管理（`users/totp` 供服务端/Web 侧）、`location.update` 主动上报（保留协议分支）、ShareResource 临时分享、视频流
+- 客户端未接入：TOTP 开通管理（`users/totp` 供服务端/Web 侧）、`location.update` 主动上报（保留协议分支）、ShareResource 临时分享、视频流
+  （OIDC 企业登录已于 0.5.0 接入，见 docs/04 §2.3）
 - 待外部配置：高德/极光正式 Key（已内置正式包名绑定值）、PUSH_GATEWAY_URL、备案号、隐私政策 URL（`--dart-define`）
 - 网关生产化：内存表换 Redis（多实例）、到达回执（见 server/README.md）

@@ -55,14 +55,30 @@ GET /api/session?token=<token>
 
 成功返回 `User`，失败 401/404。
 
-### 2.3 OIDC（P1）
+### 2.3 OIDC 企业登录（0.5.0 已实现）
 
 ```
-GET /api/session/openid/auth        → 303 跳转到 IdP
-GET /api/session/openid/callback    → 回调
+GET  /api/session/openid/auth?redirect=trackerone://openid/callback
+                                     → 303 跳转到 IdP（redirect 经签名 state 往返带回）
+GET  /api/session/openid/callback    → IdP 回调；App 发起的登录签发一次性 code 并
+                                     303 回跳 trackerone://openid/callback?code=...
+POST /api/session/openid/mobile      → form: code=... → 纯文本长期 Token（一次性 code，
+                                     5 分钟 TTL，单次消费）
 ```
 
-移动端需要 Custom Tabs / ASWebAuthenticationSession，并把回调通过 Deep Link 交还应用。v1 先支持密码 + Token。
+流程：登录页探测 `GET /api/server` 顶层 `openIdEnabled` → 显示「企业账号登录」→
+系统浏览器打开 auth URL → IdP 授权 → 服务端校验 state 签名、签发 code →
+303 回跳 App（`trackerone` scheme，Android/iOS 已注册）→ `handleOpenIdCallback`
+调 `POST /api/session/openid/mobile` 换 Token → 复用 Token 登录路径（落 Secure
+Storage、建会话、注册推送别名）。
+
+**部署要求**：
+- IdP 侧 client 注册的 redirect_uri 必须是 `{web.url}/api/session/openid/callback`，
+  因此 `web.url` 必须配置正确（Traccar 约定）；
+- 服务端 `openid.clientId/clientSecret/issuerUrl`（或显式 authUrl/tokenUrl/userInfoUrl）
+  配置后 RP 即启用；`openid.force=true` 时密码登录被服务端拒绝（App 登录页有提示）；
+- 回跳 App 的目标固定为 `trackerone://openid/callback`（服务端白名单，无需配置）；
+- 桌面浏览器直接打开 auth URL 时 cookie 会话仍会建立（web 流可用），只是无法回跳 App。
 
 ## 3. REST 接口清单
 

@@ -127,6 +127,25 @@ class TraccarApi {
     return token;
   }
 
+  /// OIDC 一次性 code 换长期 Token（TrackerOne 0.5.0，docs/04 §2.3）。
+  ///
+  /// code 来自 `trackerone://openid/callback` 深链，由服务端在完成
+  /// IdP 校验后签发（单次消费、5 分钟 TTL）；无需会话 Cookie（@PermitAll）。
+  Future<String> exchangeOpenIdCode(String code) async {
+    final response = await dio.post<String>(
+      '/api/session/openid/mobile',
+      data: 'code=${Uri.encodeQueryComponent(code)}',
+      options: Options(contentType: 'application/x-www-form-urlencoded'),
+    );
+    if (response.statusCode != 200) throw _mapError(response);
+    final token = (response.data ?? '').trim().replaceAll('"', '');
+    if (token.isEmpty) {
+      throw const ValidationFailure('服务器未返回会话 Token');
+    }
+    _token = token;
+    return token;
+  }
+
   /// Token 直接登录 / 校验（docs/04 §2.2）。
   Future<Account> validateToken(String token) async {
     _token = token;
@@ -435,6 +454,9 @@ class CommandResult {
 /// Traccar 模型的 attributes 经 Jackson 序列化为**嵌套**对象
 /// （`attributes.version`），顶层不存在该字段——此前直接读顶层
 /// 恒为 null（诊断页版本一直显示 `-`）。保留顶层兜底以兼容拍平实现。
+///
+/// 注意：`openIdEnabled`/`openIdForce` 是 Server 模型的**顶层**布尔字段
+/// （非 attributes），OIDC 登录按钮据此显隐。
 class ServerInfo {
   static String? versionOf(Map<String, dynamic> server) =>
       _attr(server, 'version');
@@ -443,9 +465,22 @@ class ServerInfo {
   static String? coordinateSystemOf(Map<String, dynamic> server) =>
       _attr(server, 'coordinateSystem');
 
+  /// 服务端是否启用 OIDC 企业登录（openIdProvider 已配置）。
+  static bool? openIdEnabledOf(Map<String, dynamic> server) =>
+      _topBool(server, 'openIdEnabled');
+
+  /// 服务端是否强制 OIDC（`openid.force=true` 时密码登录被服务端拒绝）。
+  static bool? openIdForceOf(Map<String, dynamic> server) =>
+      _topBool(server, 'openIdForce');
+
   static String? _attr(Map<String, dynamic> server, String key) {
     final attributes = server['attributes'];
     final nested = attributes is Map<String, dynamic> ? attributes[key] : null;
     return (nested ?? server[key])?.toString();
+  }
+
+  static bool? _topBool(Map<String, dynamic> server, String key) {
+    final value = server[key];
+    return value is bool ? value : null;
   }
 }

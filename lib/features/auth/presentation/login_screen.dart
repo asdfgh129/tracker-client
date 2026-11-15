@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/brand.dart';
+import '../../../core/network/traccar_api.dart';
+import '../../../core/observability/logger.dart';
+import '../../../core/storage/preferences.dart';
 import '../../../domain/failures.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/session_controller.dart';
@@ -27,12 +30,66 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _busy = false;
   String? _error;
 
+  /// 服务端 OIDC 能力（GET /api/server 探测 + Prefs 缓存）。
+  bool? _openIdEnabled;
+  bool? _openIdForce;
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _tokenController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _probeOpenId());
+  }
+
+  /// 探测服务端 OIDC 能力（PermitAll）；先读缓存立即显隐，再刷新。
+  Future<void> _probeOpenId() async {
+    final profile = ref.read(sessionControllerProvider).valueOrNull?.profile;
+    if (profile == null) return;
+    final prefs = ref.read(prefsProvider);
+    if (mounted) {
+      setState(() {
+        _openIdEnabled = prefs.getBool(PrefKeys.serverOpenIdEnabled);
+        _openIdForce = prefs.getBool(PrefKeys.serverOpenIdForce);
+      });
+    }
+    try {
+      final server = await TraccarApi(profile: profile).getServer();
+      final enabled = ServerInfo.openIdEnabledOf(server);
+      final force = ServerInfo.openIdForceOf(server);
+      if (enabled != null) await prefs.setBool(PrefKeys.serverOpenIdEnabled, enabled);
+      if (force != null) await prefs.setBool(PrefKeys.serverOpenIdForce, force);
+      if (mounted) {
+        setState(() {
+          _openIdEnabled = enabled ?? _openIdEnabled;
+          _openIdForce = force ?? _openIdForce;
+        });
+      }
+    } on Object catch (error) {
+      AppLog.w('auth', 'openid probe failed: $error');
+    }
+  }
+
+  /// 跳系统浏览器完成 IdP 授权；回跳经深链交 [SessionController]。
+  Future<void> _startOpenIdLogin() async {
+    final profile = ref.read(sessionControllerProvider).valueOrNull?.profile;
+    if (profile == null || profile.apiBaseUrl.isEmpty) return;
+    setState(() => _error = null);
+    try {
+      await launchUrl(
+        buildOpenIdAuthUrl(profile.apiBaseUrl),
+        mode: LaunchMode.externalApplication,
+      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error.toString());
+    }
   }
 
   @override
@@ -115,6 +172,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     )
                   : Text(l10n.loginButton),
             ),
+            // OIDC 企业登录（0.5.0）：服务端 openIdEnabled 时显示；
+            // openIdForce 时提示密码登录不可用（服务端会拒绝表单登录）。
+            if (_openIdEnabled ?? false) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _startOpenIdLogin,
+                icon: const Icon(Icons.business_center_outlined),
+                label: Text(l10n.loginWithOpenId),
+              ),
+              if (_openIdForce ?? false)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    l10n.loginOpenIdForceHint,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ),
+            ],
             TextButton(
               onPressed: () => setState(() {
                 _tokenMode = !_tokenMode;

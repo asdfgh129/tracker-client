@@ -115,3 +115,6 @@
 
 - tracker-client `0.4.1`（CHANGELOG 0.4.1：对齐审计整改）
 - tracker-server `6.16.0-CN-1.2`（CHANGELOG CN-1.2：coordinateSystem 暴露 + 文档）
+
+> **后续进展（2026-11-15）**：P1-2 中的 OIDC 缺口已在 0.5.0 / CN-1.3 完成接入
+> （签名 state + 一次性 code 换 Token，见 CHANGELOG 0.5.0 与 docs/04 §2.3）。

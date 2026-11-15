@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.0（OIDC 企业登录 SSO 接入）
+
+> 方案：授权码经签名 state 带回 App + 一次性 code 换 Token（docs/04 §2.3）；
+> 服务端对应版本 6.16.0-CN-1.3（`POST /api/session/openid/mobile`）。
+
+### 新增
+
+- **OIDC 企业账号登录**：服务端启用 OIDC RP（`openid.clientId` 等）后，登录页
+  显示「企业账号登录」——系统浏览器打开 `/api/session/openid/auth?redirect=…`
+  走 IdP 授权，服务端校验签名 state 后签发一次性 code（32 字节随机、5 分钟
+  TTL、单次消费）经 `trackerone://openid/callback` 深链回跳，App 调
+  `POST /api/session/openid/mobile` 换长期 Token，复用既有登录完成段
+  （Secure Storage / 会话状态 / 推送别名注册）。Token 永不出现在 URL
+- `openid.force=true` 时登录页显示提示（密码登录被服务端拒绝）
+- 冷启动深链回跳：会话恢复完成前到达的 code 自动暂存，恢复后消费
+- 登录页按 `GET /api/server` 顶层 `openIdEnabled` 显隐按钮（Prefs 缓存，
+  ServerInfo 助手新增 `openIdEnabledOf/openIdForceOf`）
+
+### 安全
+
+- 服务端 authorize state 引入 ECDSA 签名载荷（复用 CryptoManager，与
+  TokenManager 同模式）——补齐上游「state 不存储不校验」的防篡改缺口；
+  回跳目标白名单精确匹配（`trackerone://openid/callback`），无开放重定向
+
+### 测试
+
+- 新增 8 用例：签名 state 往返/篡改拒绝/垃圾回退（服务端）、auth 端点签名
+  state 集成断言、mobile 端点伪造 code 400、`ServerInfo` openid 字段、
+  授权 URL 构建、回跳深链解析。`flutter analyze` 0 issues、104 用例全绿；
+  tracker-server 93 用例 + checkstyle 全绿
+
 ## 0.4.1（客户端 ↔ 服务端协同对齐审计整改）
 
 > 审计报告与整改记录见 [docs/17-client-server-alignment-audit.md](docs/17-client-server-alignment-audit.md)；

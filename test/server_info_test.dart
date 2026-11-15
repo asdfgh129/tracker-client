@@ -31,5 +31,23 @@ void main() {
       expect(ServerInfo.coordinateSystemOf({'attributes': 'not-a-map'}),
           isNull);
     });
+
+    test('reads top-level openid booleans (OIDC 0.5.0)', () {
+      // openIdEnabled/openIdForce 是 Server 模型顶层字段（非 attributes）。
+      final server = {
+        'id': 1,
+        'openIdEnabled': true,
+        'openIdForce': false,
+        'attributes': {'version': '6.16.0-CN-1.3'},
+      };
+
+      expect(ServerInfo.openIdEnabledOf(server), isTrue);
+      expect(ServerInfo.openIdForceOf(server), isFalse);
+    });
+
+    test('openid booleans missing or malformed → null', () {
+      expect(ServerInfo.openIdEnabledOf({'id': 1}), isNull);
+      expect(ServerInfo.openIdForceOf({'openIdEnabled': 'yes'}), isNull);
+    });
   });
 }

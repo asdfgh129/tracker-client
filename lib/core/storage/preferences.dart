@@ -20,6 +20,13 @@ abstract final class PrefKeys {
   /// gcj02 时诊断页告警：TrackerOne 全链路 WGS-84，开启该模式会被误转换。
   static const serverCoordinateSystem = 'app.serverCoordinateSystem';
 
+  /// 服务端是否启用 OIDC 企业登录（/api/server 顶层 openIdEnabled），
+  /// 登录页据此显示「企业账号登录」按钮。
+  static const serverOpenIdEnabled = 'app.serverOpenIdEnabled';
+
+  /// 服务端是否强制 OIDC（openIdForce=true 时密码登录被服务端拒绝）。
+  static const serverOpenIdForce = 'app.serverOpenIdForce';
+
   // 合规
   static const privacyAgreed = 'app.privacy.agreed';
   static const privacyAgreedAt = 'app.privacy.agreedAt';
