@@ -63,7 +63,7 @@
 | 地图 | 高德 `amap_map`（中国大陆，GCJ-02）；`flutter_map` 保留海外/兜底 |
 | 推送 | 极光 JPush + 厂商通道 + 自建网关；FCM 仅海外/开发 |
 | 坐标 | 数据层 WGS-84，仅渲染层转 GCJ-02 |
-| 可观测 | 默认 `NoopCrashReporter`；海外 Crashlytics，国内待接 Bugly |
+| 可观测 | 默认 `NoopCrashReporter`；国内 Bugly（0.5.1）、海外 Crashlytics，同意门控 |
 | 后端 | tracker-server（Traccar-CN fork：REST + WebSocket + 5056 消息通道；NotificatorWebhook / 指令下行 / 邀请唤醒内置） |
 | 合规 | APP 备案、域名 ICP、隐私同意流、SDK 清单、审图号 |
 

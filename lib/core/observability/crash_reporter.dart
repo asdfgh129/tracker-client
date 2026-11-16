@@ -1,14 +1,18 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/build_config.dart';
+import 'logger.dart' show LogRedactor;
 
 /// 崩溃上报抽象。
 ///
-/// 中国大陆生产环境不能依赖 Crashlytics（需要 GMS），默认 [NoopCrashReporter]，
-/// 后续接腾讯 Bugly 时新增实现即可。
+/// 中国大陆生产环境不能依赖 Crashlytics（需要 GMS），使用 [BuglyCrashReporter]
+/// （腾讯 Bugly，0.5.1）；海外 [FirebaseCrashReporter]；默认 [NoopCrashReporter]。
 ///
 /// H-5：第三方 SDK 必须**同意隐私政策后**才允许初始化（CN-05）。
 /// 因此 [initialize] 由同意流程触发，而不是启动即调用。
@@ -110,16 +114,174 @@ final crashReporterProvider = Provider<CrashReporter>(
   (ref) => const NoopCrashReporter(),
 );
 
+/// Bugly 原生桥抽象（可注入，测试用 fake）。
+abstract interface class BuglyBridge {
+  /// 初始化 SDK，返回是否成功。
+  Future<bool> init(String appId, bool debug);
+
+  /// 关闭采集（Android 有 API；iOS 无对应 API，best-effort）。
+  Future<void> close();
+
+  /// 上报一条已脱敏的异常。
+  Future<void> reportError({
+    required String name,
+    required String reason,
+    required List<String> callStack,
+    required bool fatal,
+  });
+}
+
+/// 默认桥：MethodChannel `observability/bugly`（Android/iOS 各自实现）。
+class MethodChannelBuglyBridge implements BuglyBridge {
+  static const MethodChannel _channel = MethodChannel('observability/bugly');
+
+  const MethodChannelBuglyBridge();
+
+  @override
+  Future<bool> init(String appId, bool debug) async {
+    final ok = await _channel.invokeMethod<bool>(
+      'init',
+      {'appId': appId, 'debug': debug},
+    );
+    return ok ?? false;
+  }
+
+  @override
+  Future<void> close() => _channel.invokeMethod<void>('close');
+
+  @override
+  Future<void> reportError({
+    required String name,
+    required String reason,
+    required List<String> callStack,
+    required bool fatal,
+  }) {
+    return _channel.invokeMethod<void>('reportError', {
+      'name': name,
+      'reason': reason,
+      'stack': callStack.join('\n'),
+      'fatal': fatal,
+    });
+  }
+}
+
+/// 中国大陆崩溃上报（腾讯 Bugly，0.5.1）。
+///
+/// - 直连官方原生 SDK（无社区 Flutter 插件），薄 MethodChannel 桥；
+/// - 仅同意隐私政策后初始化（H-5/CN-05）；debug 构建与 AppId 缺失时
+///   fail-closed 不采集；
+/// - 上报前经 [LogRedactor] 脱敏（docs/03 可观测：不含 token/位置）；
+/// - `log()` 为空实现：Bugly 无面包屑 API。
+class BuglyCrashReporter implements CrashReporter {
+  BuglyCrashReporter({
+    BuglyBridge bridge = const MethodChannelBuglyBridge(),
+    bool debugMode = kDebugMode,
+    String? appId,
+  })  : _bridge = bridge,
+        _debugMode = debugMode,
+        _appId = appId ?? BuildConfig.buglyAppId;
+
+  final BuglyBridge _bridge;
+  final bool _debugMode;
+  final String _appId;
+
+  bool _enabled = false;
+
+  @override
+  bool get enabled => _enabled;
+
+  @override
+  Future<void> initialize() async {
+    if (_debugMode || _appId.isEmpty) {
+      _enabled = false;
+      return;
+    }
+    try {
+      _enabled = await _bridge.init(_appId, false);
+    } on Object {
+      // 桥接失败（原生侧异常/未实现）降级 noop，不阻断启动。
+      _enabled = false;
+    }
+  }
+
+  @override
+  Future<void> disable() async {
+    _enabled = false;
+    try {
+      await _bridge.close();
+    } on Object {
+      // iOS 无 disable API；Dart 侧已停止上报（见 BuglyReporter.swift 注释）。
+    }
+  }
+
+  @override
+  void recordFlutterError(FlutterErrorDetails details) {
+    if (!_enabled || _debugMode) return;
+    _sendError(
+      name: details.exception.runtimeType.toString(),
+      reason: details.exception.toString(),
+      stack: details.stack?.toString() ?? '',
+    );
+  }
+
+  @override
+  void recordError(Object error, StackTrace? stack, {bool fatal = false}) {
+    if (!_enabled || _debugMode) return;
+    _sendError(
+      name: error.runtimeType.toString(),
+      reason: error.toString(),
+      stack: stack?.toString() ?? '',
+      fatal: fatal,
+    );
+  }
+
+  void _sendError({
+    required String name,
+    required String reason,
+    required String stack,
+    bool fatal = false,
+  }) {
+    // docs/03 可观测：不含 token/位置 —— 先脱敏再过桥；失败静默（上报不抛）。
+    unawaited(() async {
+      try {
+        await _bridge.reportError(
+          name: LogRedactor.redact(name),
+          reason: LogRedactor.redact(reason),
+          callStack: LogRedactor.redact(stack).split('\n'),
+          fatal: fatal,
+        );
+      } on Object {
+        // 上报失败不影响应用运行。
+      }
+    }());
+  }
+
+  @override
+  Future<void> log(String message) async {
+    // Bugly 无面包屑 API，空实现以满足 CrashReporter 接口。
+  }
+}
+
 abstract final class CrashReporterFactory {
   /// 创建实现但**不初始化**（H-5：初始化推迟到隐私同意之后）。
   ///
   /// 关键点：Firebase 未配置（缺 google-services.json /
-  /// GoogleService-Info.plist）时不能阻断启动，失败时降级为 noop。
-  static CrashReporter preparePending() {
-    if (BuildConfig.crashReporter != 'firebase') {
-      return const NoopCrashReporter();
+  /// GoogleService-Info.plist）时不能阻断启动，失败时降级为 noop；
+  /// Bugly AppId 缺失时 fail-closed 走 Noop。
+  ///
+  /// [reporter]/[appId] 仅供测试注入，生产取 BuildConfig。
+  static CrashReporter preparePending({String? reporter, String? appId}) {
+    final kind = reporter ?? BuildConfig.crashReporter;
+    final id = appId ?? BuildConfig.buglyAppId;
+    switch (kind) {
+      case 'bugly':
+        if (id.isEmpty) return const NoopCrashReporter();
+        return BuglyCrashReporter(appId: id);
+      case 'firebase':
+        return FirebaseCrashReporter();
+      default:
+        return const NoopCrashReporter();
     }
-    return FirebaseCrashReporter();
   }
 
   /// 兼容旧调用：创建并立即初始化（仅用于明确不要求同意门的场景，如测试）。

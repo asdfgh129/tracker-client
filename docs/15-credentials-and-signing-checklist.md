@@ -215,7 +215,29 @@ flutter build apk --release ...
 
 > 只配置 dart-define 不够：Android 的 JPush SDK 还需要 manifest 占位符 `JPUSH_APPKEY`，否则原生初始化失败。
 
-### 3.4 验证
+### 3.4 腾讯 Bugly（崩溃上报，0.5.1）
+
+1. 注册 bugly.qq.com（QQ/微信登录），「我的产品」→ 新建产品：
+   - 产品名称：`TrackerOne`
+   - 平台：Android + iOS（分别建档）
+2. 记录 **AppId**（形如 `xxxxxxxxxx`，客户端可公开）；
+3. 项目注入（缺失时崩溃通道 fail-closed 降级 Noop，不影响启动）：
+
+```bash
+--dart-define=CRASH_REPORTER=bugly
+--dart-define=BUGLY_APP_ID="$BUGLY_APP_ID"
+```
+
+4. 合规：Bugly 已在隐私政策 SDK 清单内；初始化仅在用户同意隐私政策后
+   （`agreePrivacy()` 触发，与极光/高德同门控）；撤回同意后 Dart 侧停止上报
+   （Android 同时 `closeCrashReport()`；iOS 无该 API，为已知边界）；
+5. 符号表：发布包出现 native 崩溃时，在 Bugly 控制台上传 mapping
+   （Android）与 dSYM（iOS）以获得可读堆栈。
+
+> Bugly 依赖已内置（`com.tencent.bugly:crashreport` / `pod 'Bugly'`），
+> 仅 AppId 需要按环境注入。
+
+### 3.5 验证
 
 1. 登录后进入「设置 → 诊断」；
 2. 推送卡片应显示 `jpush`、alias `u{userId}@{serverId}`、已注册；

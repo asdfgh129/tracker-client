@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.5.1（Bugly 崩溃上报接入）
+
+### 新增
+
+- **腾讯 Bugly 崩溃上报（中国大陆）**：直连官方原生 SDK（Android
+  `com.tencent.bugly:crashreport:4.1.9.7`、iOS `pod 'Bugly'`），薄 MethodChannel
+  桥（`observability/bugly`）——无社区 Flutter 插件依赖
+  - Android 制品不在 Maven Central（原 JCenter 已停），
+    `android/build.gradle.kts` 增加阿里云公共仓库（含 JCenter 代理）
+  - iOS 桥内联于 AppDelegate（避免改动 Xcode 工程文件）
+  - `BuglyCrashReporter`：同意门控（`agreePrivacy()` 触发 initialize，与
+    极光/高德同门控 H-5/CN-05）；debug 构建与 AppId 缺失时 fail-closed
+    降级 Noop；桥接失败降级不阻断启动
+  - **上报前经 `LogRedactor` 脱敏**（token/坐标不进入崩溃平台，落实
+    docs/03 可观测承诺）；栈帧长路径脱敏但符号名与行号保留
+  - `CRASH_REPORTER=bugly` + `BUGLY_APP_ID=<控制台 AppId>` 启用
+  - Android 撤回同意调 `closeCrashReport()`；iOS SDK 无 disable API
+    （Dart 侧立即停报，已注释为已知边界）
+- 平台工程：Android channel（MainActivity，项目首个自定义 channel）、
+  proguard 保留规则、iOS Podfile/AppDelegate 注册；
+  `tool/configure-platform.sh` 补 4 项断言（并修正 MAINACTIVITY 过期路径，
+  该断言此前静默跳过）
+
+### 测试
+
+- 新增 8 用例：factory 分支（fail-closed）、debug/appId 空门控、桥接失败
+  降级、未启用不过桥、脱敏（token/坐标）断言。`flutter analyze` 0 issues、
+  112 用例全绿
+
 ## 0.5.0（OIDC 企业登录 SSO 接入）
 
 > 方案：授权码经签名 state 带回 App + 一次性 code 换 Token（docs/04 §2.3）；

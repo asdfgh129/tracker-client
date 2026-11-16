@@ -1,7 +1,7 @@
 name: trackerone
 description: "TrackerOne - unified background tracking and live fleet monitoring for Traccar."
 publish_to: 'none'
-version: 0.5.0+1
+version: 0.5.1+1
 
 environment:
   sdk: ^3.7.2

@@ -20,5 +20,9 @@
 # Traccar Client SDK（定位与队列）
 -keep class org.traccar.client.** { *; }
 
+# 腾讯 Bugly（崩溃上报，官方混淆规则）
+-dontwarn com.tencent.bugly.**
+-keep class com.tencent.bugly.** { *; }
+
 # 保留注解与泛型签名（Gson/Jackson 风格序列化所需）
 -keepattributes Signature, *Annotation*

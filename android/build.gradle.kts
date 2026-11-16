@@ -2,6 +2,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Bugly 制品未发布到 Maven Central（原 JCenter 已停）——
+        // 走阿里云公共仓库（含 JCenter 代理）；源见 bugly.qq.com 官方文档
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
     }
 }
 

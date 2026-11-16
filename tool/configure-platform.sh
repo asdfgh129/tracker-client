@@ -36,7 +36,8 @@ if [[ "$PLATFORMS" == *android* ]]; then
 
   MANIFEST="android/app/src/main/AndroidManifest.xml"
   GRADLE="android/app/build.gradle.kts"
-  MAINACTIVITY="android/app/src/main/kotlin/com/example/trackerone/MainActivity.kt"
+  # 0.4.0 包名定稿后位于 com/trackerone/app（此前 stale 路径导致断言静默跳过）
+  MAINACTIVITY="android/app/src/main/kotlin/com/trackerone/app/MainActivity.kt"
   PROGUARD="android/app/proguard-rules.pro"
 
   if [[ -f "$MANIFEST" ]]; then
@@ -70,13 +71,17 @@ if [[ "$PLATFORMS" == *android* ]]; then
     check_contains "$GRADLE" 'isCoreLibraryDesugaringEnabled = true' "core library desugaring"
     check_contains "$GRADLE" 'desugar_jdk_libs' "desugar_jdk_libs 依赖"
     check_contains "$GRADLE" 'JPUSH_APPKEY' "JPush manifestPlaceholder 占位"
+    check_contains "$GRADLE" 'com.tencent.bugly' "Bugly 崩溃上报依赖（0.5.1）"
     check_contains "$GRADLE" 'proguard-rules.pro' "release 混淆规则"
   }
 
   [[ -f "$PROGUARD" ]] && check_contains "$PROGUARD" 'cn.jpush' "ProGuard 保留极光/厂商通道"
+  [[ -f "$PROGUARD" ]] && check_contains "$PROGUARD" 'com.tencent.bugly' "ProGuard 保留 Bugly"
 
   [[ -f "$MAINACTIVITY" ]] \
     && check_contains "$MAINACTIVITY" 'shouldHandleDeeplinking' "MainActivity 关闭自动深链"
+  [[ -f "$MAINACTIVITY" ]] \
+    && check_contains "$MAINACTIVITY" 'observability/bugly' "MainActivity Bugly 崩溃上报桥"
 fi
 
 #############################
@@ -122,6 +127,7 @@ PY
   fi
 
   [[ -f "$PODFILE" ]] && check_contains "$PODFILE" "platform :ios, '15.0'" "Podfile iOS 15"
+  [[ -f "$PODFILE" ]] && check_contains "$PODFILE" "pod 'Bugly'" "Podfile Bugly 崩溃上报（0.5.1）"
 fi
 
 #############################

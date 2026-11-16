@@ -75,7 +75,7 @@
 **diagnostics · 诊断与可观测**
 - 诊断页：权限、socket 状态、服务器版本/坐标系（**gcj02 不兼容告警**，0.4.1）、指令发件箱、厂商电池引导
 - 日志脱敏（token/别名/坐标）、文件 sink、导出与擦除
-- 崩溃上报抽象（默认 Noop；海外 Crashlytics，国内待接 Bugly；同意门控）
+- 崩溃上报（默认 Noop；国内 **Bugly** 0.5.1、海外 Crashlytics；同意门控，上报前经 LogRedactor 脱敏）
 
 **settings · 设置**
 - 主题/语言（ARB，中英）/单位、免打扰时段、通知开关、生物识别开关

@@ -68,11 +68,15 @@ abstract final class BuildConfig {
   // 客户端不再内置任何与网关共享的静态密钥。密钥缺失时指令通道关闭
   // （fail-closed，避免推送 payload 成为无认证的远程控制面）。
 
-  /// 崩溃上报：`firebase`（海外/开发）或 `none`（中国大陆默认，接 Bugly 后改）。
+  /// 崩溃上报通道：`bugly`（中国大陆）、`firebase`（海外/开发）、`none`（默认）。
   static const String crashReporter = String.fromEnvironment(
     'CRASH_REPORTER',
     defaultValue: 'none',
   );
+
+  /// Bugly AppId（bugly.qq.com 控制台获取）。缺失时 bugly 通道 fail-closed
+  /// 降级 Noop（与推送网关 URL 缺失同策略）。
+  static const String buglyAppId = String.fromEnvironment('BUGLY_APP_ID');
 
   static bool get hasApiOverride => apiBaseUrl.isNotEmpty;
 

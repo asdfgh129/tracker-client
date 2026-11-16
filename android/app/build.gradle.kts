@@ -89,6 +89,9 @@ android {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // 腾讯 Bugly 崩溃上报（0.5.1，CRASH_REPORTER=bugly 时经 MethodChannel 初始化；
+    // 制品经阿里云公共仓库解析，见 android/build.gradle.kts）
+    implementation("com.tencent.bugly:crashreport:4.1.9.7")
 }
 
 kotlin {

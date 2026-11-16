@@ -30,6 +30,10 @@ target 'Runner' do
   use_frameworks!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  # 腾讯 Bugly 崩溃上报（0.5.1，CRASH_REPORTER=bugly 时经 MethodChannel 初始化）
+  pod 'Bugly', '~> 2.5'
+
   target 'RunnerTests' do
     inherit! :search_paths
   end
