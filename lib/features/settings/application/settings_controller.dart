@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/build_config.dart';
+import '../../../core/map/map_privacy_consent.dart';
 import '../../../core/observability/crash_reporter.dart';
+import '../../../core/observability/logger.dart';
 import '../../../core/storage/secure_store.dart';
 
 import '../../../core/storage/preferences.dart';
@@ -242,22 +244,41 @@ class SettingsController extends Notifier<AppSettings> {
   }
 
   /// 撤回同意（CN：撤回同意入口）。停采集 + 清本地数据 + 复位。
+  ///
+  /// 顺序很重要：必须先停掉跟踪/长连接/会话，再删数据 ——
+  /// 否则清理过程中定位仍可能继续上报，撤回同意就形同虚设。
   Future<void> revokePrivacy() async {
-    final prefs = ref.read(prefsProvider);
+    // 0) 停止一切采集路径（跟踪引擎、WebSocket、内存会话）。
+    //    由 app 层注入实现，避免 settings 反向依赖 tracking/auth。
+    try {
+      await ref.read(privacyTeardownProvider)();
+    } on Object catch (error) {
+      AppLog.w('privacy', 'teardown failed (ignored): $error');
+    }
 
-    // 先停所有采集路径，再清数据（顺序重要：避免清理过程中继续上报）。
+    // 1) 第三方 SDK。
     try {
       await ref.read(crashReporterProvider).disable();
     } on Object {
       // 忽略。
     }
-    await _syncAnalyticsCollection(enabled: false);
+    try {
+      await _syncAnalyticsCollection(enabled: false);
+    } on Object catch (error) {
+      AppLog.w('privacy', 'analytics disable failed: $error');
+    }
 
-    await prefs.setBool(PrefKeys.privacyAgreed, false);
-    await prefs.remove(PrefKeys.privacyAgreedAt);
-    await prefs.remove(PrefKeys.privacyPolicyVersion);
-    await prefs.remove(PrefKeys.analyticsEnabled);
-    await ref.read(appDatabaseProvider).wipeAllCache();
+    // 2) 本地落点：数据库、Secure Storage、日志、导出文件。
+    await _eraseLocalStores();
+
+    // 3) 同意记录：隐私门、后台定位单独同意、地图 SDK 单独同意。
+    try {
+      await _clearConsentRecords(includeAnalytics: true);
+    } on Object catch (error) {
+      // 即使存储写入失败，也要把内存状态置为未同意，路由守卫会立即生效。
+      AppLog.w('privacy', 'consent reset failed: $error');
+    }
+
     state = state.copyWith(
       privacyAgreed: false,
       privacyPolicyVersion: 0,
@@ -284,8 +305,20 @@ class SettingsController extends Notifier<AppSettings> {
   /// 3. 7 天日志文件（含设备名与事件正文）
   /// 4. 历史导出的临时 GPX/KML/CSV（全精度 WGS-84）
   /// 5. 地图隐私同意与后台定位同意记录
+  ///
+  /// 凭据被清除后内存会话不再可信，因此这里的第 0 步也会停止采集
+  /// 并复位会话（与撤回同意共用 [privacyTeardownProvider]）。
   Future<LocalWipeReport> wipeLocalData() async {
     final report = LocalWipeReport();
+
+    // 0) 先停采集：定位服务一边删一边传会让「删除」失去意义。
+    try {
+      await ref.read(privacyTeardownProvider)();
+      report.collection = true;
+    } on Object catch (error) {
+      AppLog.w('privacy', 'wipe teardown failed (ignored): $error');
+      report.collection = false;
+    }
 
     // 1) 数据库缓存。
     try {
@@ -319,11 +352,7 @@ class SettingsController extends Notifier<AppSettings> {
 
     // 5) 同意记录（撤回同意语义）。
     try {
-      final prefs = ref.read(prefsProvider);
-      await prefs.remove(PrefKeys.backgroundLocationConsent);
-      await prefs.setBool(PrefKeys.privacyAgreed, false);
-      await prefs.remove(PrefKeys.privacyAgreedAt);
-      await prefs.remove(PrefKeys.privacyPolicyVersion);
+      await _clearConsentRecords(includeAnalytics: false);
       report.consents = true;
     } on Object {
       report.consents = false;
@@ -332,11 +361,62 @@ class SettingsController extends Notifier<AppSettings> {
     state = state.copyWith(privacyAgreed: false, privacyPolicyVersion: 0);
     return report;
   }
+
+  /// 删除本地数据时的公共落点（DB / Secure / 日志 / 导出）。
+  Future<void> _eraseLocalStores() async {
+    try {
+      await ref.read(appDatabaseProvider).wipeAllCache();
+    } on Object catch (error) {
+      AppLog.w('privacy', 'wipe database failed: $error');
+    }
+    try {
+      await ref.read(secureStoreProvider).clear();
+    } on Object catch (error) {
+      AppLog.w('privacy', 'wipe credentials failed: $error');
+    }
+    try {
+      await ref.read(logEraserProvider)();
+    } on Object catch (error) {
+      AppLog.w('privacy', 'wipe logs failed: $error');
+    }
+    try {
+      await ref.read(exportEraserProvider)();
+    } on Object catch (error) {
+      AppLog.w('privacy', 'wipe exports failed: $error');
+    }
+  }
+
+  /// 清除所有「同意」记录，包括地图 SDK 的单独同意（高德要求）。
+  Future<void> _clearConsentRecords({required bool includeAnalytics}) async {
+    final prefs = ref.read(prefsProvider);
+    await prefs.setBool(PrefKeys.privacyAgreed, false);
+    await prefs.remove(PrefKeys.privacyAgreedAt);
+    await prefs.remove(PrefKeys.privacyPolicyVersion);
+    await prefs.remove(PrefKeys.backgroundLocationConsent);
+    if (includeAnalytics) {
+      await prefs.remove(PrefKeys.analyticsEnabled);
+    }
+    await ref.read(mapPrivacyConsentStoreProvider).write(
+          MapPrivacyConsentNotifier.providerId,
+          false,
+        );
+    ref.invalidate(mapPrivacyConsentProvider);
+  }
 }
+
+/// 撤回隐私 / 删除本地数据时，由 app 层注入的「停止一切采集」钩子。
+///
+/// 默认空实现（单元测试无需拉起跟踪引擎）；`main()` 中覆盖为
+/// 停止跟踪 → 断开 WebSocket → 复位内存会话。
+/// 放在这里而不是直接依赖 tracking/auth，避免 settings 反向依赖 feature。
+final privacyTeardownProvider = Provider<Future<void> Function()>(
+  (ref) => () async {},
+);
 
 /// 删除结果（诊断/设置页可展示哪些清除成功）。
 class LocalWipeReport {
   LocalWipeReport({
+    this.collection = false,
     this.database = false,
     this.credentials = false,
     this.logs = false,
@@ -344,6 +424,8 @@ class LocalWipeReport {
     this.consents = false,
   });
 
+  /// 是否已停止采集（跟踪 / 长连接 / 会话）。
+  bool collection;
   bool database;
   bool credentials;
   bool logs;
@@ -351,7 +433,12 @@ class LocalWipeReport {
   bool consents;
 
   bool get allSucceeded =>
-      database && credentials && logs && exports && consents;
+      collection &&
+      database &&
+      credentials &&
+      logs &&
+      exports &&
+      consents;
 }
 
 /// 删除日志文件（main() 中注入 DataEraser.eraseLogs）。

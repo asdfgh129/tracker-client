@@ -160,12 +160,19 @@ class SessionController extends AsyncNotifier<SessionState> {
     }
 
     // 生物识别锁在 UI 层拦截进入主界面；会话本身仍是已认证。
-    final user = await _restoreUser(profile, token);
+    final restored = await _restoreUser(profile, token);
+    if (restored.unauthorized) {
+      // Token 已被撤销/过期：清掉凭据并回登录页，绝不能把 401 当成离线。
+      return _finalize(
+        SessionState(phase: SessionPhase.anonymous, profile: profile),
+      );
+    }
+    final user = restored.user;
     _api = _createApi(profile, token);
     final biometricEnabled = prefs.getBool(SecureKeys.biometricEnabled) ?? false;
     final unlocked = !biometricEnabled;
     if (user == null) {
-      // 离线降级：缓存中已认证过（有 Token 即视为会话存在）。
+      // 离线降级：仅网络不可达时才允许用缓存进入只读（docs/01 §3.2）。
       final offlineApi = _createApi(profile, token);
       _api = offlineApi;
       return _finalize(SessionState(
@@ -268,22 +275,30 @@ class SessionController extends AsyncNotifier<SessionState> {
     return _api!;
   }
 
-  Future<Account?> _restoreUser(ServerProfile profile, String token) async {
+  /// 恢复会话并区分「网络不可达」与「凭据失效」。
+  ///
+  /// 返回 `unauthorized = true` 表示服务端明确拒绝（401），调用方必须回登录页；
+  /// 只有 `user == null && !unauthorized` 才允许离线降级。
+  Future<({Account? user, bool unauthorized})> _restoreUser(
+    ServerProfile profile,
+    String token,
+  ) async {
     try {
       final api = _createApi(profile, token);
       final user = await api.currentUser();
       AppLog.i('auth', 'session restored');
-      return user;
+      return (user: user, unauthorized: false);
     } on AppFailure catch (error) {
       // 网络错误：离线降级；401：清会话。
       AppLog.w('auth', 'restore failed: ${error.code ?? 'no-code'}');
       if (error is UnauthorizedFailure) {
         await _clearToken(profile);
+        return (user: null, unauthorized: true);
       }
-      return null;
+      return (user: null, unauthorized: false);
     } on Object catch (error) {
       AppLog.w('auth', 'restore crashed: $error');
-      return null;
+      return (user: null, unauthorized: false);
     }
   }
 

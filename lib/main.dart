@@ -11,7 +11,9 @@ import 'core/providers.dart';
 import 'core/storage/data_eraser.dart';
 import 'core/storage/database.dart';
 import 'core/storage/preferences.dart';
+import 'features/auth/application/session_controller.dart';
 import 'features/settings/application/settings_controller.dart';
+import 'features/tracking/application/tracking_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +45,21 @@ Future<void> main() async {
         // H-6：设置页与登出共用的删除实现（避免 core 反向依赖 feature）。
         logEraserProvider.overrideWithValue(DataEraser.eraseLogs),
         exportEraserProvider.overrideWithValue(DataEraser.eraseExports),
+        // 撤回隐私同意 / 删除本地数据：先停止一切采集再清数据。
+        // 停止跟踪失败也要继续断开连接与复位会话，否则会留下“半撤回”状态。
+        privacyTeardownProvider.overrideWith(
+          (ref) => () async {
+            Object? stopError;
+            try {
+              await ref.read(trackingControllerProvider.notifier).stop();
+            } on Object catch (error) {
+              stopError = error;
+            }
+            ref.read(socketClientProvider).disconnect();
+            await ref.read(sessionControllerProvider.notifier).expireSession();
+            if (stopError != null) throw stopError;
+          },
+        ),
       ],
       child: const TrackerOneApp(),
     ),

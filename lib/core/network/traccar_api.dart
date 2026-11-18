@@ -35,7 +35,10 @@ class TraccarApi {
 
   String? _token;
   CookieJar _cookieJar;
-  late final Dio dio;
+
+  // 不能声明为 `late final`：登录前需要重建（换 CookieJar）并二次赋值，
+  // 否则会抛 `LateInitializationError`，导致密码登录 100% 失败。
+  late Dio dio;
 
   /// 会话 Cookie 只在登录换取 Token 阶段使用。
   static const String _sessionPath = '/api/session';
@@ -90,7 +93,7 @@ class TraccarApi {
   /// 抛 [TotpRequiredFailure]；调用方收集验证码后携带 [code] 重试
   /// （服务端 form `code` 字段，SessionResource）。
   Future<Account> login(String email, String password, {String? code}) async {
-    // 重置 Cookie，避免上一个账号的会话干扰。
+    // 重置 Cookie，避免上一个账号的会话干扰（会重建 dio，故不能是 late final）。
     _cookieJar = CookieJar();
     dio = _buildDio();
     final response = await dio.post<String>(
