@@ -617,6 +617,8 @@
   "settingsMapTrail": "显示轨迹尾迹",
   "settingsMapCluster": "聚合标记",
   "settingsNotifications": "通知规则",
+  "settingsNotificationToggle": "接收事件通知",
+  "settingsNotificationToggleDesc": "关闭后不再显示事件横幅；系统推送还受服务器通知规则控制。",
   "settingsNotificationsDesc": "事件提醒与离线推送（离线时经极光送达）",
   "settingsDnd": "免打扰",
   "settingsDndDesc": "该时段内告警仅以应用内事件送达。",
@@ -649,6 +651,9 @@
   "settingsAccountDeleteDesc": "账号注销由服务器端处理（管理员操作）。本应用同时提供本地数据删除。",
   "settingsAnalytics": "匿名使用统计",
   "settingsAnalyticsDesc": "帮助改进可靠性，不包含位置或设备标识。",
+  "settingsBiometric": "生物识别锁",
+  "settingsBiometricDesc": "重新打开应用时需要指纹或面容解锁。",
+  "settingsBiometricUnavailable": "当前设备不支持生物识别",
   "aboutTitle": "关于",
   "aboutVersion": "版本 {version}",
   "@aboutVersion": {

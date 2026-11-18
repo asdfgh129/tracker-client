@@ -329,11 +329,22 @@ Position positionFromRow(PositionRow row) => Position(
 
 /// 事件实时进料（WS events → UI 横幅 + 未读计数）。
 class EventsFeedNotifier extends Notifier<List<DeviceEvent>> {
+  /// 只服务于「横幅 + 触发列表刷新」，保留最近若干条即可；
+  /// 原实现无限前插，长时间挂机（尤其追踪常驻）会持续吃内存。
+  static const int maxItems = 200;
+
   @override
   List<DeviceEvent> build() => const [];
 
   void absorb(List<DeviceEvent> events) {
-    state = [...events, ...state];
+    if (events.isEmpty) return;
+    final seen = {for (final event in state) event.id};
+    final fresh = [
+      for (final event in events)
+        if (seen.add(event.id)) event,
+    ];
+    if (fresh.isEmpty) return;
+    state = [...fresh, ...state].take(maxItems).toList(growable: false);
   }
 
   void clear() => state = const [];

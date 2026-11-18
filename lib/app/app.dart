@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/messaging_client.dart';
 import '../core/observability/logger.dart';
 import '../core/push/push_router.dart';
+import '../domain/entities/models.dart';
 import '../features/auth/application/session_controller.dart';
 import '../features/commands/application/command_center.dart';
 import '../features/commands/application/command_outbox.dart';
@@ -84,6 +85,8 @@ class _TrackerOneAppState extends ConsumerState<TrackerOneApp>
           outcome == RemoteCommandOutcome.needsConfirmation;
     };
     pushRouter.onEventBanner = (event) {
+      // 用户关闭「接收事件通知」时只保留应用内数据刷新，不弹横幅。
+      if (!ref.read(settingsProvider).notificationsEnabled) return;
       ref.read(eventBannerProvider.notifier).showEvent(event);
     };
     // 回调就绪后再开始消费网关消息流（冷启动意图缓存至会话就绪）。
@@ -163,6 +166,8 @@ class _TrackerOneAppState extends ConsumerState<TrackerOneApp>
         }
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
+        // 生物识别锁：退到后台即上锁；回前台由路由守卫转到 /lock。
+        unawaited(ref.read(sessionControllerProvider.notifier).lock());
         socket.suspend();
         if (trackingActive) {
           messaging.resume();
@@ -231,10 +236,18 @@ class _TrackerOneAppState extends ConsumerState<TrackerOneApp>
 
     // WS 实时事件 → 前台横幅（EVT-06；推送路径经 PushRouter.onEventBanner）。
     ref.listen(eventsFeedProvider, (previous, next) {
-      final prevCount = previous?.length ?? 0;
-      if (next.length <= prevCount) return;
+      if (!ref.read(settingsProvider).notificationsEnabled) return;
+      // 进料有上限并去重，不能再靠长度差判断新增项；按 id 求差集。
+      final prevIds = {
+        for (final event in previous ?? const <DeviceEvent>[]) event.id,
+      };
+      final fresh = [
+        for (final event in next)
+          if (!prevIds.contains(event.id)) event,
+      ];
+      if (fresh.isEmpty) return;
       final devices = ref.read(devicesControllerProvider).valueOrNull;
-      for (final event in next.take(next.length - prevCount)) {
+      for (final event in fresh) {
         ref.read(eventBannerProvider.notifier).showEvent(
               event,
               deviceName: devices?.deviceById(event.deviceId)?.name,

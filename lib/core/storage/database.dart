@@ -135,6 +135,13 @@ class FriendRows extends Table {
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// 事件列表主查询索引：`WHERE server_id = ? ORDER BY event_time DESC`
+/// （列表、补拉、未读计数共用）。位置表已有 UNIQUE(server, device, fix) 索引。
+final _eventServerTimeIndex = Index(
+  'event_server_time',
+  'CREATE INDEX event_server_time ON event_rows (server_id, event_time)',
+);
+
 @DriftDatabase(
   tables: [
     ServerProfiles,
@@ -152,10 +159,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.open(String path) : super(_openConnection(path));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createAll();
+          await m.create(_eventServerTimeIndex);
+        },
         onUpgrade: (m, from, to) async {
           // v2：好友表（好友体系新增）。
           if (from < 2) {
@@ -164,6 +175,10 @@ class AppDatabase extends _$AppDatabase {
           // v3：档案显式记录「允许明文 HTTP」（H-3 同意结果需要持久化）。
           if (from < 3) {
             await m.addColumn(serverProfiles, serverProfiles.allowInsecure);
+          }
+          // v4：事件列表/补拉按 serverId + eventTime 建索引。
+          if (from < 4) {
+            await m.create(_eventServerTimeIndex);
           }
         },
       );

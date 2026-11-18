@@ -15,7 +15,7 @@
 | **MVP 开发（P0 全量）** | ✅ 已实现（见 CHANGELOG 0.2.0） |
 | **好友体系（5056 消息通道）** | ✅ 已实现（见 CHANGELOG 0.3.0；服务端 tracker-server CN-1.1） |
 | **发布工程 + opencode 线能力合并** | ✅ 包名/Key 定稿、每别名指令密钥、指令发件箱、缩放聚合、网关韧性（见 CHANGELOG 0.4.0） |
-| 单元测试 | ✅ 124 用例全绿；`flutter analyze` 0 issues |
+| 单元测试 | ✅ 130 用例全绿；`flutter analyze` 0 issues |
 | 推送网关参考实现 | ✅ `server/`（零依赖 Node.js 网关；正式 NotificatorWebhook 在 tracker-server） |
 | 安全审计（MASVS-L1） | ✅ 首轮审计 + 阻断项整改（见 `docs/11-security-performance-audit.md`） |
 | 待办（外部依赖） | ⬜ 高德/极光 Key、备案号、隐私政策 URL（`--dart-define` 占位） |
@@ -90,7 +90,7 @@ tracker-client/
 ├── server/
 │   ├── gateway/              # 推送网关参考实现（零依赖 Node.js）+ 联调脚本
 │   └── traccar-plugin/       # NotificatorWebhook 参考实现（正式版在 tracker-server）
-├── test/                     # 单元测试（124 用例）
+├── test/                     # 单元测试（130 用例）
 ├── tool/
 │   ├── bootstrap.sh          # 重新生成平台工程（FORCE）
 │   ├── verify.sh             # pub get / 代码生成 / analyze / test

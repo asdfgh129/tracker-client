@@ -34,6 +34,57 @@ class HistoryScreen extends ConsumerStatefulWidget {
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   int _lastSyncedCount = -1;
+  HistoryRange _range = HistoryRange.today();
+  _RangeOption _option = _RangeOption.today;
+
+  Future<void> _selectRange(_RangeOption option) async {
+    final l10n = AppLocalizations.of(context);
+    HistoryRange next;
+    switch (option) {
+      case _RangeOption.today:
+        next = HistoryRange.today();
+      case _RangeOption.yesterday:
+        next = HistoryRange.yesterday();
+      case _RangeOption.last7Days:
+        next = HistoryRange.lastDays(7);
+      case _RangeOption.custom:
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final picked = await showDateRangePicker(
+          context: context,
+          firstDate: today.subtract(const Duration(days: 365)),
+          lastDate: today,
+          initialDateRange: DateTimeRange(
+            start: _range.from,
+            end: _range.to.subtract(const Duration(days: 1)),
+          ),
+          helpText: l10n.historyCustom,
+        );
+        if (picked == null) return;
+        // 日期选择器的结束日是闭区间，查询范围需要 +1 天。
+        next = HistoryRange.custom(
+          DateTime(picked.start.year, picked.start.month, picked.start.day),
+          DateTime(picked.end.year, picked.end.month, picked.end.day)
+              .add(const Duration(days: 1)),
+        );
+    }
+    setState(() {
+      _range = next;
+      _option = option;
+    });
+    if (!mounted) return;
+    await ref
+        .read(historyControllerProvider(widget.deviceId).notifier)
+        .load(widget.deviceId, next);
+  }
+
+  String _optionLabel(AppLocalizations l10n, _RangeOption option) =>
+      switch (option) {
+        _RangeOption.today => l10n.historyToday,
+        _RangeOption.yesterday => l10n.historyYesterday,
+        _RangeOption.last7Days => l10n.history7d,
+        _RangeOption.custom => l10n.historyCustom,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +131,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
       body: Column(
         children: [
+          // 时间范围（HIS-01：今日/昨日/近 7 天/自定义）。
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                for (final option in _RangeOption.values)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(_optionLabel(l10n, option)),
+                      selected: _option == option,
+                      onSelected: (_) => _selectRange(option),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           Expanded(
             child: Stack(
               children: [
@@ -131,7 +200,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       message: error,
                       onRetry: () => ref
                           .read(historyControllerProvider(widget.deviceId).notifier)
-                          .load(widget.deviceId, HistoryRange.today()),
+                          .load(widget.deviceId, _range),
                     ),
                   ),
               ],
@@ -471,3 +540,6 @@ class _HistoryEvents extends ConsumerWidget {
     );
   }
 }
+
+/// 历史范围分段（HIS-01）。
+enum _RangeOption { today, yesterday, last7Days, custom }

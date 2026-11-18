@@ -62,10 +62,11 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     final tracking = ref.watch(trackingControllerProvider).valueOrNull;
 
     final input = DiagnosisInput(
-      foregroundGranted: true,
+      // 真实权限在 [_completeInput] 中异步探测；加载完成前不假装已授权。
+      foregroundGranted: false,
       backgroundGranted: false,
-      notificationGranted: true,
-      motionGranted: true,
+      notificationGranted: false,
+      motionGranted: false,
       trackingRunning: tracking is TrackingRunning || tracking is TrackingLimited,
       lastFixAt: devices?.lastRefresh,
       lastUploadAt: tracking is TrackingRunning ? tracking.lastUploadAt : null,
@@ -270,12 +271,21 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     } on Object {
       // 桌面/测试环境无该权限 API，按未豁免处理。
     }
+    // 时钟偏差：读服务器 Date 头（离线 / 只读会话时无法测量，保持 0）。
+    int clockSkewSeconds = 0;
+    try {
+      final api = ref.read(sessionControllerProvider).valueOrNull?.api();
+      final skew = await api?.serverClockSkew();
+      if (skew != null) clockSkewSeconds = skew.inSeconds;
+    } on Object {
+      // 无会话 / 离线只读：保持未知。
+    }
     return DiagnosisInput(
       foregroundGranted: foreground == PermissionStatus.granted,
       backgroundGranted: background == PermissionStatus.granted ||
           background == PermissionStatus.limited,
       notificationGranted: notification == PermissionStatus.granted ||
-          notification.isDenied == false,
+          notification == PermissionStatus.limited,
       motionGranted: motion == PermissionStatus.granted,
       trackingRunning: base.trackingRunning,
       lastFixAt: base.lastFixAt,
@@ -283,7 +293,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       queueSize: base.queueSize,
       socketStatus: base.socketStatus,
       serverReachable: base.serverReachable,
-      clockSkewSeconds: base.clockSkewSeconds,
+      clockSkewSeconds: clockSkewSeconds,
       batteryOptimizationIgnored: batteryIgnored,
     );
   }

@@ -38,6 +38,15 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text(session?.profile?.apiBaseUrl ?? '-'),
             onTap: () => context.push('/server'),
           ),
+          SwitchListTile(
+            secondary: const Icon(Icons.fingerprint),
+            title: Text(l10n.settingsBiometric),
+            subtitle: Text(l10n.settingsBiometricDesc),
+            value: session?.biometricEnabled ?? false,
+            onChanged: session == null
+                ? null
+                : (value) => _setBiometric(context, ref, value),
+          ),
           ListTile(
             leading: const Icon(Icons.logout),
             title: Text(l10n.settingsLogout),
@@ -192,6 +201,14 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(),
 
           _SectionHeader(l10n.commonDone),
+          SwitchListTile(
+            secondary: const Icon(Icons.notifications_outlined),
+            title: Text(l10n.settingsNotificationToggle),
+            subtitle: Text(l10n.settingsNotificationToggleDesc),
+            value: settings.notificationsEnabled,
+            onChanged: (value) =>
+                _setNotifications(context, ref, value),
+          ),
           ListTile(
             leading: const Icon(Icons.notifications_active_outlined),
             title: Text(l10n.settingsNotifications),
@@ -216,6 +233,45 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// 事件通知开关：开启时顺带申请系统通知权限（Android 13+ 必须显式申请）。
+  Future<void> _setNotifications(
+    BuildContext context,
+    WidgetRef ref,
+    bool enabled,
+  ) async {
+    if (enabled) {
+      await const PermissionService().requestNotification();
+    }
+    if (!context.mounted) return;
+    await ref.read(settingsProvider.notifier).setNotificationsEnabled(enabled);
+  }
+
+  /// 生物识别锁开关（AUTH-07）：开启前必须完成一次验证，
+  /// 避免在不支持生物识别的设备上把用户锁在应用外。
+  Future<void> _setBiometric(
+    BuildContext context,
+    WidgetRef ref,
+    bool enabled,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final notifier = ref.read(sessionControllerProvider.notifier);
+    if (!enabled) {
+      await notifier.setBiometricEnabled(false);
+      return;
+    }
+    if (!await notifier.biometricAvailable()) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.settingsBiometricUnavailable)),
+        );
+      }
+      return;
+    }
+    if (await notifier.authenticateWithBiometrics()) {
+      await notifier.setBiometricEnabled(true);
+    }
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {

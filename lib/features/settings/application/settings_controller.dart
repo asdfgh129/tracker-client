@@ -32,7 +32,7 @@ class AppSettings {
     this.analyticsEnabled = false,
     this.privacyAgreed = false,
     this.privacyPolicyVersion = 0,
-    this.notificationsEnabled = false,
+    this.notificationsEnabled = true,
   });
 
   final ThemeMode themeMode;
@@ -112,7 +112,7 @@ class SettingsController extends Notifier<AppSettings> {
       privacyAgreed: prefs.getBool(PrefKeys.privacyAgreed) ?? false,
       privacyPolicyVersion:
           prefs.getInt(PrefKeys.privacyPolicyVersion) ?? 0,
-      notificationsEnabled: prefs.getBool(PrefKeys.notificationsEnabled) ?? false,
+      notificationsEnabled: prefs.getBool(PrefKeys.notificationsEnabled) ?? true,
     );
   }
 

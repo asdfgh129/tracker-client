@@ -617,6 +617,8 @@
   "settingsMapTrail": "Show trail",
   "settingsMapCluster": "Cluster markers",
   "settingsNotifications": "Notification rules",
+  "settingsNotificationToggle": "Receive event notifications",
+  "settingsNotificationToggleDesc": "When off, in-app event banners are hidden. System push is still controlled by server rules.",
   "settingsNotificationsDesc": "Event alerts and offline push (via JPush when offline)",
   "settingsDnd": "Do not disturb",
   "settingsDndDesc": "Deliver alerts as in-app events during this window.",
@@ -649,6 +651,9 @@
   "settingsAccountDeleteDesc": "Account deletion is managed on the server (users admin). This app also offers local data deletion.",
   "settingsAnalytics": "Anonymous usage statistics",
   "settingsAnalyticsDesc": "Helps improve reliability. Never includes location or identifiers.",
+  "settingsBiometric": "Biometric app lock",
+  "settingsBiometricDesc": "Require fingerprint or face unlock when reopening the app.",
+  "settingsBiometricUnavailable": "This device does not support biometrics",
   "aboutTitle": "About",
   "aboutVersion": "Version {version}",
   "@aboutVersion": {

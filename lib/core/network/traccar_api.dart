@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show HttpDate, HttpHeaders;
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
@@ -83,6 +84,20 @@ class TraccarApi {
       throw const ValidationFailure('未检测到 Traccar API');
     }
     return data;
+  }
+
+  /// 服务器与本机的时钟偏差（诊断页）：
+  /// 解析响应 `Date` 头，失败（离线 / 无该头）返回 null。
+  Future<Duration?> serverClockSkew() async {
+    try {
+      final response = await dio.get<dynamic>('/api/server');
+      final header = response.headers.value(HttpHeaders.dateHeader);
+      if (header == null) return null;
+      final server = HttpDate.parse(header).toUtc();
+      return server.difference(DateTime.now().toUtc());
+    } on Object {
+      return null;
+    }
   }
 
   // ---- 会话 ----
