@@ -41,7 +41,7 @@ import '../../../l10n/app_localizations.dart';
         theme.colorScheme.statusDanger,
         l10n.eventTypeSos
       ),
-    'overspeed' => (
+    'overspeed' || 'deviceOverspeed' => (
         Icons.speed,
         theme.colorScheme.statusWarning,
         l10n.eventTypeOverspeed

@@ -99,6 +99,16 @@ class JpushPushGateway implements PushGateway {
   }
 
   @override
+  Future<void> clearAlias() async {
+    if (!_initialized) return;
+    try {
+      await _jpush.deleteAlias();
+    } catch (error) {
+      AppLog.w('push', 'deleteAlias failed', code: '$error');
+    }
+  }
+
+  @override
   Future<PushMessage?> takeInitialMessage() async {
     final message = _initialMessage;
     _initialMessage = null;
@@ -118,9 +128,13 @@ class JpushPushGateway implements PushGateway {
         data[_keyToString(entry.key)] = entry.value;
       }
     }
+    // 必须整体走 fromData：逐个字段拷贝会漏掉 type，
+    // 导致 friendInvite 等无 eventId 的唤醒推送被静默丢弃。
+    final parsed = PushMessage.fromData(data);
     return PushMessage(
-      eventId: PushMessage.fromData(data).eventId,
-      command: PushMessage.fromData(data).command,
+      eventId: parsed.eventId,
+      command: parsed.command,
+      type: parsed.type,
       title: (message['title'] as Object?)?.toString() ??
           (data['title'] as Object?)?.toString(),
       body: (message['alert'] as Object?)?.toString() ??

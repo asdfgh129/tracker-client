@@ -17,6 +17,7 @@ class ServerProfiles extends Table {
   TextColumn get apiBaseUrl => text()();
   TextColumn get reportUrl => text()();
   BoolColumn get allowSelfSigned => boolean().withDefault(const Constant(false))();
+  BoolColumn get allowInsecure => boolean().withDefault(const Constant(false))();
   BoolColumn get isDemo => boolean().withDefault(const Constant(false))();
   BoolColumn get isActive => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
@@ -151,7 +152,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.open(String path) : super(_openConnection(path));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -159,6 +160,10 @@ class AppDatabase extends _$AppDatabase {
           // v2：好友表（好友体系新增）。
           if (from < 2) {
             await m.createTable(friendRows);
+          }
+          // v3：档案显式记录「允许明文 HTTP」（H-3 同意结果需要持久化）。
+          if (from < 3) {
+            await m.addColumn(serverProfiles, serverProfiles.allowInsecure);
           }
         },
       );
@@ -267,6 +272,17 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> clearDevices(int serverId) =>
       (delete(deviceRows)..where((t) => t.serverId.equals(serverId))).go();
+
+  /// 全量快照替换：服务器上已删除的设备必须同步移除，不能只 upsert。
+  Future<void> replaceDevices(
+    int serverId,
+    Iterable<DeviceRowsCompanion> rows,
+  ) async {
+    await transaction(() async {
+      await clearDevices(serverId);
+      await upsertDevices(serverId, rows);
+    });
+  }
 
   // ---- 位置 ----
 
@@ -408,6 +424,9 @@ class AppDatabase extends _$AppDatabase {
             ))
           .getSingleOrNull();
 
+  Future<void> clearTrackingSnapshots(int serverId) =>
+      (delete(trackingSnapshots)..where((t) => t.id.equals(serverId))).go();
+
   // ---- 好友（v2）----
 
   /// 响应式好友列表（好友页 / 地图好友图层共用）。
@@ -452,6 +471,17 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> clearFriends(int serverId) =>
       (delete(friendRows)..where((t) => t.serverId.equals(serverId))).go();
+
+  /// friends.list 全量快照替换：删除已解除好友关系的残留行。
+  Future<void> replaceFriends(
+    int serverId,
+    Iterable<FriendRowsCompanion> rows,
+  ) async {
+    await transaction(() async {
+      await clearFriends(serverId);
+      await upsertFriends(serverId, rows);
+    });
+  }
 
   // ---- 数据删除（CN-09：本地数据删除入口）----
 

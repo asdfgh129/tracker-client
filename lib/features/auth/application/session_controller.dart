@@ -61,6 +61,7 @@ class SessionState {
     this.profile,
     this.serverVersion,
     this.offline = false,
+    this.readOnly = false,
     this.unlocked = true,
     this.biometricEnabled = false,
     this.apiClient,
@@ -79,6 +80,9 @@ class SessionState {
   /// 网络不可达时用缓存进入只读界面（docs/01 §3.2 验收）。
   final bool offline;
 
+  /// 离线只读：未登录但允许浏览本地缓存（网络调用一律拒绝）。
+  final bool readOnly;
+
   /// 生物识别锁（AUTH-07）：false 时路由守卫拦截到 /lock。
   final bool unlocked;
   final bool biometricEnabled;
@@ -93,6 +97,9 @@ class SessionState {
   /// M-8：会话未就绪、或生物识别锁定期间一律拒绝 —— 让「锁」成为真正的
   /// 数据访问门禁，而不只是路由重定向。
   TraccarApi api() {
+    if (readOnly) {
+      throw const UnauthorizedFailure(message: '离线只读模式，请登录后再操作');
+    }
     if (!unlocked) {
       throw const UnauthorizedFailure(message: '应用已锁定，请先解锁');
     }
@@ -113,6 +120,7 @@ class SessionState {
     bool clearProfile = false,
     String? serverVersion,
     bool? offline,
+    bool? readOnly,
     bool? unlocked,
     bool? biometricEnabled,
     TraccarApi? apiClient,
@@ -124,6 +132,7 @@ class SessionState {
       profile: clearProfile ? null : (profile ?? this.profile),
       serverVersion: serverVersion ?? this.serverVersion,
       offline: offline ?? this.offline,
+      readOnly: readOnly ?? this.readOnly,
       unlocked: unlocked ?? this.unlocked,
       biometricEnabled: biometricEnabled ?? this.biometricEnabled,
       apiClient: apiClient ?? this.apiClient,
@@ -227,6 +236,24 @@ class SessionController extends AsyncNotifier<SessionState> {
     if (current != null && current.biometricEnabled) {
       state = AsyncData(current.copyWith(unlocked: false));
     }
+  }
+
+  /// 进入离线只读模式（不登录浏览本地缓存，docs/01 §3.2）。
+  ///
+  /// 界面只读 drift 缓存；[SessionState.api] 拒绝一切网络调用。
+  void enterReadOnly() {
+    final profile = state.value?.profile ??
+        ref
+            .read(serverProfileControllerProvider)
+            .valueOrNull
+            ?.activeProfile;
+    _api = null;
+    state = AsyncData(SessionState(
+      phase: SessionPhase.anonymous,
+      profile: profile,
+      offline: true,
+      readOnly: true,
+    ));
   }
 
   /// 开关生物识别锁（AUTH-07）。
@@ -488,6 +515,11 @@ class SessionController extends AsyncNotifier<SessionState> {
       await _clearToken(profile!);
     }
     await _deleteGatewayAlias(current);
+    try {
+      await ref.read(pushServiceProvider).clearAlias();
+    } on Object catch (error) {
+      AppLog.w('push', 'clear alias failed (ignored): $error');
+    }
     // H-6：登出同样清缓存、日志与导出文件（与「删除本地数据」一致）。
     await ref.read(appDatabaseProvider).wipeAllCache();
     try {

@@ -142,6 +142,9 @@ abstract final class ServerAddressDeriver {
     if (uri.host.isEmpty) {
       throw ServerAddressException('地址缺少主机名：$trimmed');
     }
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      throw ServerAddressException('仅支持 http/https，收到 ${uri.scheme}');
+    }
     if (uri.scheme == 'http' && !allowInsecure) {
       throw const ServerAddressException('明文 HTTP 不安全，请使用 HTTPS；'
           '如确需使用，请在高级选项中确认风险');
@@ -158,16 +161,14 @@ abstract final class ServerAddressDeriver {
 
     // 上报地址：同 host，端口固定为 Traccar 默认的 5055。
     // 手工拼接而非 Uri.replace：后者会把空 query/fragment 序列化成 "?#"。
-    final reportAuthority = uri.hasPort
-        ? '${uri.host}:5055'
-        : '${uri.host}:5055';
-    final report = '${uri.scheme}://$reportAuthority';
+    final report = '${uri.scheme}://${uri.host}:5055';
 
     return ServerProfile(
       name: (name == null || name.isEmpty) ? uri.host : name,
       apiBaseUrl: api,
       reportUrl: report,
       allowSelfSigned: allowSelfSigned,
+      allowInsecure: allowInsecure,
     );
   }
 

@@ -22,6 +22,9 @@ class _FakePushGateway implements PushGateway {
   Future<void> updateAlias(String alias) async {}
 
   @override
+  Future<void> clearAlias() async {}
+
+  @override
   Stream<PushMessage> get messages => _controller.stream;
 
   @override
@@ -95,6 +98,33 @@ void main() {
     expect(navigated.single.eventId, 555);
     expect(navigated.single.deviceId, 7);
     expect(navigated.single.friendInvite, isFalse);
+  });
+
+  test('pending command keeps signature fields when replayed after login',
+      () async {
+    router.setSessionReady(false);
+    controller.add(PushMessage.fromData({
+      'command': 'positionSingle',
+      'sig': 'abc123',
+      'issuedAt': '1700000000000',
+      'userId': '7',
+    }));
+    await pump();
+
+    final received = <PushMessage>[];
+    router.onCommand = (message) async {
+      received.add(message);
+      return true;
+    };
+
+    expect(router.consumePending(), isNull);
+    await pump();
+
+    expect(received, hasLength(1));
+    // 只重投 command 会丢失验签字段，CommandCenter 必然拒绝。
+    expect(received.single.data['sig'], 'abc123');
+    expect(received.single.data['issuedAt'], '1700000000000');
+    expect(received.single.data['userId'], '7');
   });
 
   test('push without eventId and without type stays ignored', () async {

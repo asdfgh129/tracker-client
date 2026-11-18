@@ -25,7 +25,9 @@ class FcmPushGateway implements PushGateway {
 
   PushMessage? _initialMessage;
   bool _initialized = false;
-  final Set<String> _topics = {};
+
+  /// 当前订阅的 topic（最多一个；切换账号必须先退订旧 topic）。
+  String? _currentTopic;
   StreamSubscription<RemoteMessage>? _onMessageSubscription;
   StreamSubscription<RemoteMessage>? _onOpenedSubscription;
 
@@ -79,9 +81,30 @@ class FcmPushGateway implements PushGateway {
   Future<void> updateAlias(String alias) async {
     if (!_initialized) return;
     final topic = topicFor(alias);
-    if (_topics.contains(topic)) return;
-    _topics.add(topic);
+    if (_currentTopic == topic) return;
+    final previous = _currentTopic;
+    _currentTopic = topic;
+    if (previous != null) {
+      // 登出/换号后必须退订旧 topic，否则仍会收到上一账号的事件推送。
+      try {
+        await FirebaseMessaging.instance.unsubscribeFromTopic(previous);
+      } on Object catch (error) {
+        AppLog.w('push', 'unsubscribe $previous failed', code: '$error');
+      }
+    }
     await FirebaseMessaging.instance.subscribeToTopic(topic);
+  }
+
+  @override
+  Future<void> clearAlias() async {
+    final topic = _currentTopic;
+    _currentTopic = null;
+    if (topic == null) return;
+    try {
+      await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+    } on Object catch (error) {
+      AppLog.w('push', 'clearAlias failed', code: '$error');
+    }
   }
 
   @override
@@ -93,6 +116,7 @@ class FcmPushGateway implements PushGateway {
 
   @override
   Future<void> dispose() async {
+    await clearAlias();
     await _onMessageSubscription?.cancel();
     await _onOpenedSubscription?.cancel();
     await _messages.close();

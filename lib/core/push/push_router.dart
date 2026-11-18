@@ -14,6 +14,7 @@ class PendingPushIntent {
     this.deviceId,
     this.command,
     this.friendInvite = false,
+    this.message,
   });
 
   final int? eventId;
@@ -24,8 +25,16 @@ class PendingPushIntent {
   /// 落点由 app 层决定（好友页 + 刷新列表）。
   final bool friendInvite;
 
+  /// 远程指令的原始消息：重投时必须保留 sig/issuedAt/userId 等验签字段，
+  /// 只带 command 会在登录后被 CommandCenter 判为 missingSignature。
+  final PushMessage? message;
+
   bool get isEmpty =>
-      eventId == null && deviceId == null && command == null && !friendInvite;
+      eventId == null &&
+      deviceId == null &&
+      command == null &&
+      !friendInvite &&
+      message == null;
 }
 
 /// 推送路由（EVT-04、DEV-06）：
@@ -108,12 +117,13 @@ class PushRouter {
   Future<void> _handleCommand(PushMessage message) async {
     final handler = onCommand;
     if (handler == null) {
-      _pending = PendingPushIntent(command: message.command);
+      // 保留完整消息（含验签字段），登录后原样重投。
+      _pending = PendingPushIntent(command: message.command, message: message);
       return;
     }
     final executed = await handler(message);
     if (!executed) {
-      _pending = PendingPushIntent(command: message.command);
+      _pending = PendingPushIntent(command: message.command, message: message);
     }
   }
 
@@ -122,8 +132,16 @@ class PushRouter {
     final pending = _pending;
     _pending = null;
     if (pending != null && !pending.isEmpty) {
+      final message = pending.message;
+      if (message != null) {
+        // 指令在登录后使用**原始消息**重投，保留 HMAC 验签所需字段。
+        unawaited(
+          onCommand?.call(message) ?? Future<bool>.value(false),
+        );
+        return null;
+      }
       if (pending.command != null) {
-        // 指令在登录后重新投递给处理器。
+        // 兼容旧调用方：没有完整消息时至少把 command 投递给处理器。
         unawaited(
           onCommand?.call(
                 PushMessage(command: pending.command),

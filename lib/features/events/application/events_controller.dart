@@ -21,8 +21,10 @@ extension EventFilterX on EventFilter {
     return switch (this) {
       EventFilter.all => true,
       EventFilter.unread => !item.isRead,
-      EventFilter.alarms =>
-        type == 'alarm' || type == 'sos' || type == 'overspeed',
+      EventFilter.alarms => type == 'alarm' ||
+          type == 'sos' ||
+          type == 'overspeed' ||
+          type == 'deviceOverspeed',
       EventFilter.geofences =>
         type == 'geofenceEnter' || type == 'geofenceExit',
     };
@@ -92,7 +94,11 @@ class EventsController extends AsyncNotifier<EventsState> {
   Future<EventsState> build() async {
     final session = ref.watch(sessionControllerProvider).value;
     final serverId = session?.profile?.id;
-    if (session == null || !session.isAuthenticated || serverId == null) {
+    if (session == null || serverId == null) {
+      return const EventsState();
+    }
+    final online = session.isAuthenticated;
+    if (!online && !session.readOnly) {
       return const EventsState();
     }
     ref.watch(appDatabaseProvider);
@@ -104,8 +110,11 @@ class EventsController extends AsyncNotifier<EventsState> {
       unawaited(_reloadFromDb());
     });
 
-    // 冷启动兜底：补拉最近 7 天事件。
-    unawaited(backfill());
+    // 离线只读只读缓存，不补拉。
+    if (online) {
+      // 冷启动兜底：补拉最近 7 天事件。
+      unawaited(backfill());
+    }
 
     return state.valueOrNull ?? const EventsState();
   }

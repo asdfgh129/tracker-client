@@ -84,18 +84,17 @@ class _EventsScreenState extends ConsumerState<EventsScreen> with WidgetsBinding
           // 分段筛选。
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 for (final filter in EventFilter.values)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(_filterLabel(l10n, filter)),
-                      selected: state.filter == filter,
-                      onSelected: (_) => ref
-                          .read(eventsControllerProvider.notifier)
-                          .setFilter(filter),
-                    ),
+                  FilterChip(
+                    label: Text(_filterLabel(l10n, filter)),
+                    selected: state.filter == filter,
+                    onSelected: (_) => ref
+                        .read(eventsControllerProvider.notifier)
+                        .setFilter(filter),
                   ),
               ],
             ),
@@ -132,10 +131,14 @@ class _EventsScreenState extends ConsumerState<EventsScreen> with WidgetsBinding
                                       theme.colorScheme.onPrimaryContainer,
                                 ),
                               ),
-                              onDismissed: (_) {
-                                ref
+                              // 左滑是「切换已读」，不删除条目：
+                              // confirmDismiss 返回 false 让卡片回弹，
+                              // 否则 Dismissible 要求同步移除，会触发断言。
+                              confirmDismiss: (_) async {
+                                await ref
                                     .read(eventsControllerProvider.notifier)
                                     .markRead(item.id, read: !item.isRead);
+                                return false;
                               },
                               child: _EventTile(
                                 item: item,

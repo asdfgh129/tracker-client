@@ -244,6 +244,7 @@ function renderMessage(payload, locale = 'zh') {
           deviceOnline: { title: 'Device online', body: `${deviceName} is back online` },
           alarm: { title: 'Alarm', body: `${deviceName} triggered an alarm` },
           overspeed: { title: 'Overspeed', body: `${deviceName} is speeding` },
+          deviceOverspeed: { title: 'Overspeed', body: `${deviceName} is speeding` },
           sos: { title: 'SOS', body: `${deviceName} sent an SOS` },
         }
       : {
@@ -253,6 +254,7 @@ function renderMessage(payload, locale = 'zh') {
           deviceOnline: { title: '设备上线', body: `${deviceName} 已上线` },
           alarm: { title: '告警', body: `${deviceName} 触发告警` },
           overspeed: { title: '超速', body: `${deviceName} 超速行驶` },
+          deviceOverspeed: { title: '超速', body: `${deviceName} 超速行驶` },
           sos: { title: 'SOS 求助', body: `${deviceName} 发送 SOS 求助` },
         };
   const template =

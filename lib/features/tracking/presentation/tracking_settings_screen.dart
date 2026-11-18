@@ -237,8 +237,13 @@ class _TrackingSettingsScreenState
     var next = preset == null ? base : preset.applyTo(base);
     if (patch != null) {
       next = patch(next);
-      await store.save(next);
     }
+    // 任何一次修改都要同时落盘「配置 + 预设」：
+    // 只存配置而不把预设改成 custom，下次进入会被旧预设覆盖回弹。
+    if (preset != null) {
+      await store.savePreset(preset);
+    }
+    await store.save(next);
     // 运行中热生效（docs/05 §4.3）。
     await ref.read(trackingControllerProvider.notifier).applyConfig(next);
     if (mounted) {

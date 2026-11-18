@@ -68,13 +68,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final hasServer = serverState?.activeProfile != null ||
           session?.profile != null;
       final authenticated = session?.isAuthenticated ?? false;
+      final readOnly = session?.readOnly ?? false;
       final restoring = session == null || session.phase == SessionPhase.restoring;
 
       // 2) 启动决策：会话恢复期间停在 splash。
       if (path == '/') {
         if (restoring) return null;
         if (!hasServer) return '/server';
-        if (!authenticated) return '/login';
+        if (!authenticated && !readOnly) return '/login';
         return '/map';
       }
 
@@ -90,7 +91,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (needsServer && !hasServer && path != '/server') {
         return '/server';
       }
-      if (needsServer && !authenticated && path != '/login') {
+      if (needsServer && !authenticated && !readOnly && path != '/login') {
         return '/login';
       }
 

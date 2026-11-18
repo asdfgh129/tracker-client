@@ -132,6 +132,14 @@ class TrackingController extends AsyncNotifier<TrackingUiState> {
     if (session?.profile == null) {
       throw const ConfigFailure('请先配置服务器');
     }
+    // 离线只读 / 未登录不得启动上报（否则会绕过登录与同意门禁）。
+    if (!(session?.isAuthenticated ?? false)) {
+      throw const UnauthorizedFailure(message: '请先登录后再开始上报');
+    }
+    // CN-06：后台定位必须单独同意；远程 positionPeriodic 也必须经过此门禁。
+    if (!_backgroundConsent) {
+      throw const PermissionFailure('需要先同意后台上报位置');
+    }
 
     state = const AsyncData(TrackingStarting());
     try {

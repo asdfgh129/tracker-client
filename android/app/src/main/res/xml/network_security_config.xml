@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  自建 Traccar 的默认位置上报端口 5055 常为 http://，Android 9+ 默认会
+  拦截明文请求（表现为上报一直失败）。应用层已在「服务器设置」中要求
+  用户显式确认「允许明文 HTTP」，这里只负责解除系统层拦截。
+  HTTPS 仍是默认推荐，且自签名证书不在此放开（仍由应用层显式确认）。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

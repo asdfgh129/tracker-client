@@ -49,6 +49,7 @@ class ServerProfileState {
       apiBaseUrl: row.apiBaseUrl,
       reportUrl: row.reportUrl,
       allowSelfSigned: row.allowSelfSigned,
+      allowInsecure: row.allowInsecure,
       isDemo: row.isDemo,
       isActive: row.isActive,
     );
@@ -158,6 +159,7 @@ class ServerProfileController extends AsyncNotifier<ServerProfileState> {
           apiBaseUrl: profile.apiBaseUrl,
           reportUrl: profile.reportUrl,
           allowSelfSigned: profile.allowSelfSigned,
+          allowInsecure: profile.allowInsecure,
           isDemo: profile.isDemo,
         ),
       );
@@ -169,6 +171,7 @@ class ServerProfileController extends AsyncNotifier<ServerProfileState> {
           apiBaseUrl: profile.apiBaseUrl,
           reportUrl: profile.reportUrl,
           allowSelfSigned: Value(profile.allowSelfSigned),
+          allowInsecure: Value(profile.allowInsecure),
           isDemo: Value(profile.isDemo),
           sortOrder: Value(profiles.length),
         ),
@@ -181,12 +184,13 @@ class ServerProfileController extends AsyncNotifier<ServerProfileState> {
   /// 激活已有档案（多服务器切换，AUTH-09）。
   Future<void> activate(int id) async {
     final db = ref.watch(appDatabaseProvider);
-    // 换服务器前撤销旧服务器的推送网关别名（必须在 secure.clear() 之前，
+    // 换服务器前撤销旧服务器的推送网关别名（必须在会话失效之前，
     // 盐值还在；docs/09 §3.4 防串号）。
     await _deleteAliasBestEffort();
     await db.activateProfile(id);
-    // 换服务器必须清掉旧会话缓存（docs/04 §10）。
-    await ref.read(secureStoreProvider).clear();
+    // 只结束当前内存会话；其它服务器的 Token / 密码 / 盐必须保留，
+    // 否则多服务器用户每次切换都要全部重新登录。
+    await ref.read(sessionControllerProvider.notifier).expireSession();
     await _reload();
   }
 
@@ -211,9 +215,21 @@ class ServerProfileController extends AsyncNotifier<ServerProfileState> {
 
   Future<void> deleteProfile(int id) async {
     final db = ref.watch(appDatabaseProvider);
+    final wasActive =
+        ref.read(sessionControllerProvider).valueOrNull?.profile?.id == id;
     await db.deleteProfile(id);
     await db.wipeServerData(id);
-    await ref.read(secureStoreProvider).delete(SecureKeys.token(id));
+    await db.clearTrackingSnapshots(id);
+    // 按 serverId 精确清理该档案的全部凭据（不能只删 Token）。
+    final secure = ref.read(secureStoreProvider);
+    await secure.delete(SecureKeys.token(id));
+    await secure.delete(SecureKeys.password(id));
+    await secure.delete(SecureKeys.messagingPassword(id));
+    await secure.delete(SecureKeys.commandSecret(id));
+    await secure.delete(aliasSaltKey(id));
+    if (wasActive) {
+      await ref.read(sessionControllerProvider.notifier).expireSession();
+    }
     await _reload();
   }
 

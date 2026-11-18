@@ -102,7 +102,7 @@ class FriendsController extends Notifier<FriendsState> {
     client.friendsStream.listen((entries) async {
       final serverId = _serverId();
       if (serverId == null) return;
-      await ref.read(appDatabaseProvider).upsertFriends(
+      await ref.read(appDatabaseProvider).replaceFriends(
             serverId,
             entries.map(_toRow),
           );
@@ -340,7 +340,7 @@ class FriendsController extends Notifier<FriendsState> {
       await client.declineLocation(request.requestId);
       return;
     }
-    final position = _latestOwnPosition();
+    final position = await _latestOwnPosition();
     if (position == null) {
       await client.declineLocation(request.requestId);
       return;
@@ -355,12 +355,18 @@ class FriendsController extends Notifier<FriendsState> {
   }
 
   /// 本机最新位置：优先 REST/WS 合并缓存，其次 drift 库。
-  Position? _latestOwnPosition() {
+  Future<Position?> _latestOwnPosition() async {
     final deviceId = ref.read(prefsProvider).getInt(PrefKeys.trackingDeviceId);
+    if (deviceId == null) return null;
     final devices = ref.read(devicesControllerProvider).valueOrNull;
-    if (deviceId != null) {
-      final cached = devices?.positionOf(deviceId);
-      if (cached != null) return cached;
+    final cached = devices?.positionOf(deviceId);
+    if (cached != null) return cached;
+
+    final serverId = _serverId();
+    if (serverId == null) return null;
+    final rows = await ref.read(appDatabaseProvider).latestPositions(serverId);
+    for (final row in rows) {
+      if (row.deviceId == deviceId) return positionFromRow(row);
     }
     return null;
   }

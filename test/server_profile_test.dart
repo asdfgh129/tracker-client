@@ -53,6 +53,22 @@ void main() {
       expect(allowed.apiBaseUrl, 'http://10.0.0.2:8082');
     });
 
+    test('keeps allowInsecure consent on the derived profile', () {
+      final profile = ServerAddressDeriver.derive(
+        input: 'http://10.0.0.2:8082',
+        allowInsecure: true,
+      );
+      // H-3：用户对明文 HTTP 的确认必须随档案持久化，否则重启后丢失。
+      expect(profile.allowInsecure, isTrue);
+    });
+
+    test('rejects non-http(s) schemes', () {
+      expect(
+        () => ServerAddressDeriver.derive(input: 'ftp://10.0.0.2'),
+        throwsA(isA<ServerAddressException>()),
+      );
+    });
+
     test('socket url uses ws scheme for http api', () {
       final profile = ServerAddressDeriver.derive(
         input: 'http://10.0.0.2:8082',
@@ -132,9 +148,11 @@ void main() {
       apiBaseUrl: 'https://a',
       reportUrl: 'https://a:5055',
       allowSelfSigned: true,
+      allowInsecure: true,
     );
     final restored = ServerProfile.fromJson(profile.toJson());
     expect(restored.name, 'n');
     expect(restored.allowSelfSigned, isTrue);
+    expect(restored.allowInsecure, isTrue);
   });
 }

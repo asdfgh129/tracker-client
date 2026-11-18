@@ -72,7 +72,12 @@ class DevicesController extends AsyncNotifier<DevicesState> {
     final session = ref.watch(sessionControllerProvider).value;
     final profile = session?.profile;
     final serverId = profile?.id;
-    if (session == null || !session.isAuthenticated || serverId == null) {
+    if (session == null || serverId == null) {
+      return const DevicesState();
+    }
+    // 离线只读：允许浏览本地缓存，但不发起 REST / WebSocket。
+    final online = session.isAuthenticated;
+    if (!online && !session.readOnly) {
       return const DevicesState();
     }
 
@@ -86,13 +91,16 @@ class DevicesController extends AsyncNotifier<DevicesState> {
       positions: {
         for (final row in cachedPositions) row.deviceId: positionFromRow(row),
       },
+      offline: session.readOnly,
     );
 
     // 2) REST 快照刷新（后台执行，不阻塞首帧）。
-    unawaited(refresh());
+    if (online) {
+      unawaited(refresh());
 
-    // 3) WebSocket 增量。
-    _subscribeSocket(session, serverId);
+      // 3) WebSocket 增量。
+      _subscribeSocket(session, serverId);
+    }
 
     ref.onDispose(_teardown);
     return cached;
@@ -198,7 +206,7 @@ class DevicesController extends AsyncNotifier<DevicesState> {
       final devices = await api.getDevices();
       final positions = await api.getPositions();
 
-      await db.upsertDevices(
+      await db.replaceDevices(
         serverId,
         devices.map(deviceToRow(serverId)).toList(),
       );
@@ -207,15 +215,15 @@ class DevicesController extends AsyncNotifier<DevicesState> {
         positions.map(positionToRow(serverId)).toList(),
       );
 
-      final byId = {
-        for (final d in state.valueOrNull?.devices ?? const <Device>[]) d.id: d,
+      // 全量快照：从服务器返回的列表重建，删除的设备不能残留。
+      final byId = {for (final device in devices) device.id: device};
+      final deviceIds = byId.keys.toSet();
+      final positionsMap = <int, Position>{
+        for (final entry
+            in (state.valueOrNull?.positions ?? const <int, Position>{})
+                .entries)
+          if (deviceIds.contains(entry.key)) entry.key: entry.value,
       };
-      for (final device in devices) {
-        byId[device.id] = device;
-      }
-      final positionsMap = Map<int, Position>.of(
-        state.valueOrNull?.positions ?? const {},
-      );
       for (final position in positions) {
         positionsMap[position.deviceId] = position;
       }

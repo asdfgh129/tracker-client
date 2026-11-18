@@ -85,8 +85,11 @@ class TrackingPrefsStore {
       wakeLock: _prefs.getBool(PrefKeys.trackingWakeLock) ?? false,
       preferPlatformProviders: _prefs.getBool(PrefKeys.trackingPreferPlatform) ?? false,
     );
-    // 用户显式选择预设时应用预设；custom 时用逐项配置。
-    return preset == TrackingPreset.custom ? configured : preset.applyTo(base);
+    // 用户显式选择预设时只覆盖预设字段；心跳/缓冲/唤醒锁等
+    // 仍以用户保存的逐项配置为准（此前整块丢弃）。
+    return preset == TrackingPreset.custom
+        ? configured
+        : preset.applyTo(configured);
   }
 
   TrackingAccuracy? _accuracyFromPrefs() {

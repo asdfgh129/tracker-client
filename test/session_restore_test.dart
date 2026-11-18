@@ -27,6 +27,7 @@ ServerProfileRow _row(String apiBaseUrl) => ServerProfileRow(
   apiBaseUrl: apiBaseUrl,
   reportUrl: 'http://127.0.0.1:5055',
   allowSelfSigned: false,
+  allowInsecure: false,
   isDemo: false,
   isActive: true,
   sortOrder: 0,

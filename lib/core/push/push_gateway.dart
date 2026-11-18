@@ -77,6 +77,9 @@ abstract interface class PushGateway {
   /// 登录用户或服务器变化时更新别名。
   Future<void> updateAlias(String alias);
 
+  /// 登出 / 切换账号时解除别名订阅（默认无操作）。
+  Future<void> clearAlias();
+
   /// 前台 / 点击通知产生的消息流。
   Stream<PushMessage> get messages;
 
@@ -96,6 +99,9 @@ class NoopPushGateway implements PushGateway {
 
   @override
   Future<void> updateAlias(String alias) async {}
+
+  @override
+  Future<void> clearAlias() async {}
 
   @override
   Stream<PushMessage> get messages => const Stream<PushMessage>.empty();

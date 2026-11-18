@@ -297,6 +297,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _goOffline() async {
     // 离线只读：不登录直接进主界面（缓存数据可见，顶部离线横幅）。
+    ref.read(sessionControllerProvider.notifier).enterReadOnly();
     if (mounted) context.go('/map');
   }
 

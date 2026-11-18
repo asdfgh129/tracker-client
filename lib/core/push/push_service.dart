@@ -191,6 +191,9 @@ class PushService {
 
   Future<void> updateAliasString(String alias) => _gateway.updateAlias(alias);
 
+  /// 登出 / 换账号：解除当前推送别名订阅。
+  Future<void> clearAlias() => _gateway.clearAlias();
+
   Stream<PushMessage> get messages => _gateway.messages;
 
   /// 冷启动点击通知：登录完成后再调用，避免路由竞态。
