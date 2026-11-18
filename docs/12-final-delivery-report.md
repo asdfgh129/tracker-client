@@ -191,8 +191,9 @@ MASVS-L1 首轮审计：2C + 8H + 11M + 8L。全部处置：
 
 1. **CN 包 Firebase 拆分**（docs/09 §3.9）：CI 断言就位；彻底拆分需维护
    `pubspec_cn.yaml` 或独立分支，属发布前工程动作。
-2. **未接线依赖**：`connectivity_plus`/`battery_plus`/`flutter_map` 等按 flavor
-   清理（海外包接 flutter_map 兜底、诊断页接 battery_plus 白名单检测）。
+2. **未接线依赖**：`connectivity_plus` / `battery_plus` / `flutter_map` /
+   `latlong2` / `flutter_local_notifications` 已清理（v0.5.2）；后续如接海外
+   瓦片方案再按需引入。
 3. **网关存储**：内存 Map 仅适用单实例；多实例换 Redis（键结构见代码注释）。
 4. **LogRedactor 用例**：建议补 Base64 与 `Basic` 场景单测。
 5. **单元测试覆盖**：UI 层（Widget 测试）与集成测试（`integration_test/`）为

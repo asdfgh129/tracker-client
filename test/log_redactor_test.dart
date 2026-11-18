@@ -33,6 +33,16 @@ void main() {
       expect(redacted, isNot(contains('39.90421')));
     });
 
+    test('redacts short Basic credentials and Base64 keys', () {
+      // Basic 的值可能很短（用户名:密码），不能依赖 24 字符阈值。
+      final basic = LogRedactor.redact('Authorization: Basic dXNlcjpwYXNz');
+      expect(basic, isNot(contains('dXNlcjpwYXNz')));
+
+      // Base64 字符集（含 + / =）的长密钥需被长串规则命中。
+      final base64 = LogRedactor.redact('key AbC+dEf/gHi=JkL+mNo/PqR= done');
+      expect(base64, isNot(contains('AbC+dEf/gHi=JkL+mNo/PqR=')));
+    });
+
     test('keeps ordinary words intact', () {
       final redacted = LogRedactor.redact('tracking started interval=300');
       expect(redacted, contains('tracking started'));

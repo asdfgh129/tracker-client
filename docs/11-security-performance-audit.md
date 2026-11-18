@@ -106,7 +106,7 @@ CI 的 `cn-build-hygiene` job 会在 CN 构建后断言；提审前按 docs/09 �
 
 1. **真机验证**（docs/10 M0 清单 0.2–0.8）：高德渲染帧率、24h 心跳、国产 ROM 后台存活 —— 代码层无法替代。
 2. **CN 包 Firebase 拆分**（docs/09 §3.9）：CI 已加 APK 成分断言；彻底拆分需维护 `pubspec_cn.yaml` 或分支，属发布前工程动作。
-3. **`connectivity_plus` / `battery_plus` / `flutter_map` 等未接线依赖**：按 flavor 清理（海外包接 flutter_map 兜底、诊断页接 battery_plus 白名单检测）。
+3. **未接线依赖已清理**：`connectivity_plus` / `battery_plus` / `flutter_map` / `latlong2` / `flutter_local_notifications` 均未使用，已从 `pubspec.yaml` 移除；诊断页电池优化状态改用 `Permission.ignoreBatteryOptimizations`。
 4. **推送指令 HMAC**：✅ 已升级为每别名独立 `commandSecret`（网关注册时签发、HTTPS 下发、Secure Storage 存储），消除打进客户端的静态共享密钥；别名缺失密钥时指令通道自动关闭。
 5. **LogRedactor 单测**：已覆盖 JWT/凭据/坐标；Base64 与 `Basic` 场景建议补充用例。
 6. **release 签名**：`android/key.properties` 需要正式 keystore（构建已强制）；

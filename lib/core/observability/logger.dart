@@ -72,18 +72,20 @@ abstract final class LogRedactor {
   /// 经纬度数值（保留 3 位小数，约 110m）。
   static final RegExp _coordinate = RegExp(r'-?\d{1,3}\.\d{4,}');
 
-  /// 脱敏入口：凭据 → JWT → 长 Token → 坐标精度。
+  /// 脱敏入口：认证方案 → 凭据 → JWT → 长 Token → 坐标精度。
   static String redact(String input) {
     var text = input;
-    // 1) 键值对（保留键名便于排障）。
-    text = text.replaceAllMapped(
-      _credentialPair,
-      (match) => '${match.group(1)}=${match.group(2)}<redacted>',
-    );
-    // 2) Basic/Bearer 等认证方案后的凭据整段脱敏（值可能很短）。
+    // 1) Basic/Bearer 等认证方案后的凭据整段脱敏。
+    // 必须先于键值对规则：`Authorization: Basic xxx` 若先按键值对处理，
+    // 只会吃掉方案名 `Basic`，真正的凭据（可能很短）会残留。
     text = text.replaceAllMapped(
       _authScheme,
       (match) => '${match.group(1)} <redacted>',
+    );
+    // 2) 键值对（保留键名便于排障）。
+    text = text.replaceAllMapped(
+      _credentialPair,
+      (match) => '${match.group(1)}=${match.group(2)}<redacted>',
     );
     // 3) JWT（先于长串，避免被逐段处理）。
     text = text.replaceAllMapped(_jwtLike, (match) => '<redacted:jwt>');
